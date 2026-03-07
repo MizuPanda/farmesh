@@ -2,9 +2,10 @@
 
 import { useSyncExternalStore } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { Sprout, Bell, LogOut } from "lucide-react";
-import { getStoredUser, signOut } from "@/lib/auth";
+import { getUser } from "@/lib/auth";
+import { signout } from "@/app/actions/signout";
+import type { User } from "@/types";
 
 type AppNavProps = {
   unreadCount?: number;
@@ -23,19 +24,17 @@ const getSessionSnapshot = () => getStoredUser();
 const getSessionServerSnapshot = () => null;
 
 export default function AppNav({ unreadCount = 0 }: AppNavProps) {
-  const router = useRouter();
-  const user = useSyncExternalStore(
-    subscribeToSession,
-    getSessionSnapshot,
-    getSessionServerSnapshot
-  );
+  const [user, setUser] = useState<User | null>(null);
+
+  useEffect(() => {
+    getUser().then(setUser);
+  }, []);
 
   const handleSignOut = async () => {
-    await signOut();
-    router.push("/");
+    await signout();
   };
 
-  const isFarmer = user?.type === "Farmer";
+  const isFarmer = user?.type === "farmer";
 
   return (
     <header
