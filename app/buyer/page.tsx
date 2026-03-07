@@ -62,7 +62,7 @@ export default function BuyerDashboard() {
                             Buyer Dashboard
                         </h1>
                         <p className="mt-2 text-sm" style={{ color: "var(--text-muted)" }}>
-                            Post requests, review AI matches, and track your orders
+                            Post sourcing needs, review local Canadian farm matches, and track your orders
                         </p>
                     </div>
                     <button

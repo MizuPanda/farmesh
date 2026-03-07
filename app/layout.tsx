@@ -18,9 +18,13 @@ const cormorant = Cormorant_Garamond({
 });
 
 export const metadata: Metadata = {
-  title: "Farmesh — AI Coordination for Local Food Systems",
+  title: "Farmesh | Local Farm Network",
   description:
-    "The AI coordination layer connecting local farmers and buyers for smarter, fresher food supply chains.",
+    "Connect local Canadian farmers with restaurants, independent grocers, and other food businesses through faster local matching.",
+  icons: {
+    icon: "/icon.svg",
+    shortcut: "/icon.svg",
+  },
 };
 
 export default function RootLayout({

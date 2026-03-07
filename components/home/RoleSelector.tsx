@@ -50,7 +50,7 @@ export default function RoleSelector() {
                             <p className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>
                                 Continue as Buyer
                             </p>
-                            <p className="text-xs" style={{ color: "var(--text-subtle)" }}>Source local produce</p>
+                            <p className="text-xs" style={{ color: "var(--text-subtle)" }}>Source from Canadian farms</p>
                         </div>
                     </Link>
                 </div>
