@@ -5,15 +5,15 @@ import { getListings, getRequests } from '@/lib/db';
 
 /**
  * MODEL SELECTION NOTE:
- * - gpt-4o: Best balance of speed + reasoning for matching logic. Recommended for production.
- * - o3-mini: Better for complex multi-constraint reasoning (pricing, substitutions, quantities).
- *   Use if match quality needs improvement. Slower + costs more.
+ * - gemini-2.5-flash: Fast, good for matching logic (current default).
+ * - gpt-4o: Most reliable for tool calling. Switch back if Gemini tool calls aren't triggering.
+ * - o3-mini: Best for complex multi-constraint reasoning.
  * - claude-3-5-sonnet-20241022: Excellent alternative via Backboard's multi-provider routing.
  *
- * Change MATCHING_MODEL below to experiment. gpt-4o is the default.
+ * Override via .env.local: MATCHING_MODEL and MATCHING_PROVIDER
  */
-const MATCHING_MODEL = process.env.MATCHING_MODEL ?? 'gpt-4o';
-const MATCHING_PROVIDER = process.env.MATCHING_PROVIDER ?? 'openai';
+const MATCHING_MODEL = process.env.MATCHING_MODEL ?? 'gemini-2.5-flash';
+const MATCHING_PROVIDER = process.env.MATCHING_PROVIDER ?? 'google';
 
 export async function POST(req: NextRequest) {
   try {
@@ -25,12 +25,17 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    console.log('[MatchingAgent] POST /api/match called');
+
     // Allow caller to override listings/requirements, or pull live from DB
     const body = await req.json().catch(() => ({}));
     const listings = body.listings ?? (await getListings()).filter((l) => l.status === 'OPEN');
     const requirements = body.requirements ?? (await getRequests()).filter((r) => r.status === 'OPEN');
 
+    console.log('[MatchingAgent] open listings:', listings.length, '| open requests:', requirements.length);
+
     if (listings.length === 0 || requirements.length === 0) {
+      console.log('[MatchingAgent] Early exit — no open listings or requests');
       return NextResponse.json({ success: false, message: 'No open listings or requests to match.' });
     }
 
@@ -70,9 +75,11 @@ Your job:
    - Quantity: listing must supply at least 30% of the request
    - Price: listing pricePerUnit should not exceed buyer pricePerUnit by more than 20%
    - Allow product substitutions unless the buyer has specified otherwise
-3. For EACH valid match found, call the propose_match tool once.
+3. For EACH valid match found, call the propose_match function/tool.
 4. Only call propose_match for genuine matches. Do NOT call it for poor matches.
-5. Do NOT produce any conversational text — only tool calls.`,
+5. If the tool is unavailable, respond ONLY with a JSON array of match objects with the exact fields:
+   vendorId, buyerId, listingId, requestId, product, quantity, score, reason.
+   No markdown, no explanation — raw JSON array only.`,
       tools: [proposeMatchTool],
     });
 
@@ -93,8 +100,14 @@ ${JSON.stringify(requirements, null, 2)}
       stream: false,
     }) as MessageResponse;
 
+    // Debug: log full response shape so we can diagnose model behaviour
+    console.log('[MatchingAgent] status:', response.status);
+    console.log('[MatchingAgent] toolCalls:', JSON.stringify(response.toolCalls ?? null));
+    console.log('[MatchingAgent] content:', response.content?.slice(0, 500));
+
     const proposedMatches = [];
 
+    // ── Path A: Model called the tool (OpenAI, Claude, some Gemini configs) ──
     if (response.status === 'REQUIRES_ACTION' && response.toolCalls) {
       const toolOutputs = [];
 
@@ -110,6 +123,35 @@ ${JSON.stringify(requirements, null, 2)}
       await client.submitToolOutputs(thread.threadId, response.runId!, toolOutputs);
     }
 
+    // ── Path B: Model returned text instead of a tool call (Gemini fallback) ──
+    // Parse whatever JSON the model produced directly from its text response.
+    if (proposedMatches.length === 0 && response.content) {
+      try {
+        // Strip markdown code fences if present
+        const cleaned = response.content
+          .replace(/```json\s*/gi, '')
+          .replace(/```\s*/gi, '')
+          .trim();
+
+        // Find the first [...] array in the response
+        const arrayMatch = cleaned.match(/\[[\s\S]*\]/);
+        if (arrayMatch) {
+          const parsed: any[] = JSON.parse(arrayMatch[0]);
+          for (const args of parsed) {
+            if (args.vendorId && args.buyerId && args.listingId && args.requestId) {
+              const match = await handleProposedMatch(args);
+              proposedMatches.push(match);
+            }
+          }
+          if (proposedMatches.length > 0) {
+            console.log('[MatchingAgent] Used text-fallback parser, found', proposedMatches.length, 'match(es)');
+          }
+        }
+      } catch (e) {
+        console.warn('[MatchingAgent] Text-fallback parse failed:', e);
+      }
+    }
+
     // Cleanup ephemeral assistant
     try {
       await client.deleteAssistant(assistant.assistantId);
@@ -120,6 +162,13 @@ ${JSON.stringify(requirements, null, 2)}
       success: true,
       matchesFound: proposedMatches.length,
       matches: proposedMatches,
+      debug: {
+        model: MATCHING_MODEL,
+        provider: MATCHING_PROVIDER,
+        responseStatus: response.status,
+        hadToolCalls: !!(response.toolCalls?.length),
+        usedTextFallback: proposedMatches.length > 0 && !response.toolCalls?.length,
+      }
     });
   } catch (error: any) {
     console.error('[MatchingAgent] Error:', error);
