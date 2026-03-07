@@ -1,39 +1,223 @@
-"use client";
-
-import { Sprout } from "lucide-react";
-import RoleSelector from "@/components/home/RoleSelector";
-import LoginForm from "@/components/home/LoginForm";
+import Link from "next/link";
+import { Sprout, ShoppingBasket, ArrowRight, ArrowDown } from "lucide-react";
 
 export default function Home() {
   return (
-    <div className="flex min-h-screen flex-col bg-gray-50">
-      {/* App Bar */}
-      <header className="flex items-center justify-between border-b border-gray-200 bg-white px-6 py-3 shadow-sm">
-        <div className="flex items-center gap-2.5">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-green-100">
-            <Sprout className="h-5 w-5 text-green-700" />
-          </div>
-          <h1 className="text-xl font-bold tracking-tight text-gray-900">
-            Farmesh
-          </h1>
+    <div className="flex min-h-screen flex-col" style={{ backgroundColor: "var(--background)" }}>
+
+      {/* ── Header ────────────────────────────────────────────────────── */}
+      <header
+        className="sticky top-0 z-50 border-b transition-all duration-500"
+        style={{ borderColor: "hsl(30 15% 88%)", backgroundColor: "hsl(40 33% 97% / 0.9)", backdropFilter: "blur(8px)" }}
+      >
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4 lg:px-12">
+          {/* Logo */}
+          <Link href="/" className="flex items-center gap-3 group">
+            <div className="flex h-8 w-8 items-center justify-center bg-green-600">
+              <Sprout className="h-4 w-4 text-white" />
+            </div>
+            <span className="font-serif text-xl tracking-tight" style={{ color: "var(--foreground)" }}>
+              Farmesh
+            </span>
+          </Link>
+
+          <Link
+            href="/auth"
+            className="link-underline text-xs font-medium tracking-[0.15em] uppercase transition-colors duration-300"
+            style={{ color: "hsl(30 8% 45%)" }}
+          >
+            Sign in
+          </Link>
         </div>
-        <RoleSelector />
       </header>
 
-      {/* Main Content — Login Form */}
-      <main className="flex flex-1 items-center justify-center px-4">
-        <div className="flex w-full max-w-sm flex-col items-center">
-          <p className="mb-2 text-sm font-medium text-green-700">
-            The AI coordination layer for local food systems
-          </p>
-          <p className="mb-8 max-w-xs text-center text-sm leading-relaxed text-gray-500">
-            Farmesh connects local farmers and wholesale buyers using AI to
-            match supply with demand — reducing waste, saving time, and
-            strengthening local food networks.
-          </p>
-          <LoginForm />
+      {/* ── Hero — Full Viewport ───────────────────────────────────────── */}
+      <section className="relative h-[100svh] overflow-hidden">
+        {/* Background image with Ken Burns */}
+        <div className="absolute inset-0">
+          <img
+            src="https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=1920&q=80"
+            alt="Golden farm fields at sunrise"
+            className="animate-ken-burns h-[110%] w-full object-cover"
+          />
+          <div
+            className="absolute inset-0"
+            style={{ background: "linear-gradient(to bottom, hsl(30 10% 15% / 0.35) 0%, hsl(30 10% 15% / 0.1) 40%, hsl(30 10% 15% / 0.55) 100%)" }}
+          />
         </div>
-      </main>
+
+        {/* Hero content */}
+        <div className="relative mx-auto flex h-full max-w-7xl flex-col justify-end px-6 pb-24 lg:px-12">
+          <div className="animate-fade-in-up max-w-3xl">
+            <p className="mb-6 text-[11px] font-semibold tracking-[0.3em] uppercase text-white/70">
+              AI-Powered Local Food Coordination
+            </p>
+            <h1 className="font-serif mb-8 text-5xl leading-[0.9] tracking-tight text-white md:text-7xl lg:text-8xl">
+              Local supply meets
+              <br />
+              <em className="font-normal not-italic" style={{ fontStyle: "italic" }}>local demand</em>
+            </h1>
+            <p className="mb-10 max-w-lg text-base leading-relaxed text-white/75 md:text-lg">
+              Connecting farmers market vendors with restaurants, grocers, and
+              community organizations — using AI to match supply with demand and
+              strengthen local food networks.
+            </p>
+            <div className="flex flex-col gap-4 sm:flex-row">
+              <Link
+                href="/auth?role=farmer"
+                className="group inline-flex items-center gap-3 bg-green-600 px-8 py-4 text-xs font-semibold tracking-[0.15em] uppercase text-white transition-all duration-300 hover:bg-green-700"
+              >
+                I&apos;m a Farmer
+                <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
+              </Link>
+              <Link
+                href="/auth?role=buyer"
+                className="group inline-flex items-center gap-3 bg-amber-600 px-8 py-4 text-xs font-semibold tracking-[0.15em] uppercase text-white transition-all duration-300 hover:bg-amber-700"
+              >
+                I&apos;m a Buyer
+                <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
+              </Link>
+            </div>
+          </div>
+
+          {/* Scroll indicator */}
+          <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 opacity-60">
+            <span className="text-[10px] tracking-[0.3em] uppercase text-white/60">Scroll</span>
+            <ArrowDown className="animate-float h-4 w-4 text-white/60" />
+          </div>
+        </div>
+      </section>
+
+      {/* ── How It Works ──────────────────────────────────────────────── */}
+      <section className="py-24 md:py-32" style={{ backgroundColor: "var(--background)" }}>
+        <div className="mx-auto max-w-7xl px-6 lg:px-12">
+          <div className="mb-16 text-center animate-fade-in">
+            <p className="mb-3 text-[11px] font-semibold tracking-[0.3em] uppercase text-green-600">
+              How It Works
+            </p>
+            <h2 className="font-serif text-4xl md:text-5xl" style={{ color: "var(--foreground)" }}>
+              Smarter food coordination
+            </h2>
+          </div>
+
+          <div className="stagger-children grid gap-8 md:grid-cols-3">
+            {[
+              {
+                num: "01",
+                title: "Post Supply or Demand",
+                body: "Farmers list available inventory. Buyers post what they need — in plain language or structured form.",
+              },
+              {
+                num: "02",
+                title: "AI Matches in Real Time",
+                body: "Our AI engine evaluates quantity, proximity, timing, and price to surface the best pairings for both sides.",
+              },
+              {
+                num: "03",
+                title: "Confirm & Connect",
+                body: "Accept a match, arrange delivery, and track your order — all within Farmesh.",
+              },
+            ].map(({ num, title, body }) => (
+              <div key={num} className="hover-lift border p-8" style={{ borderColor: "hsl(30 15% 88%)", backgroundColor: "hsl(40 30% 95%)" }}>
+                <p className="mb-4 font-serif text-4xl text-green-600/30">{num}</p>
+                <h3 className="font-serif mb-3 text-xl" style={{ color: "var(--foreground)" }}>{title}</h3>
+                <p className="text-sm leading-relaxed" style={{ color: "hsl(30 8% 45%)" }}>{body}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── Role Cards ────────────────────────────────────────────────── */}
+      <section className="py-24 md:py-32" style={{ backgroundColor: "hsl(35 25% 93%)" }}>
+        <div className="mx-auto max-w-7xl px-6 lg:px-12">
+          <div className="mb-16 text-center">
+            <p className="mb-3 text-[11px] font-semibold tracking-[0.3em] uppercase text-green-600">
+              Get Started
+            </p>
+            <h2 className="font-serif text-4xl md:text-5xl" style={{ color: "var(--foreground)" }}>
+              Choose your role
+            </h2>
+          </div>
+
+          <div className="grid gap-6 md:grid-cols-2">
+            {/* Farmer card */}
+            <Link
+              href="/auth?role=farmer"
+              className="hover-lift group flex flex-col gap-8 border p-10"
+              style={{ borderColor: "hsl(30 15% 88%)", backgroundColor: "hsl(40 33% 97%)" }}
+            >
+              <div className="flex h-12 w-12 items-center justify-center bg-green-600">
+                <Sprout className="h-6 w-6 text-white" />
+              </div>
+              <div>
+                <p className="mb-1 text-[11px] font-semibold tracking-[0.3em] uppercase text-green-600">
+                  For Farmers
+                </p>
+                <h3 className="font-serif mb-3 text-2xl md:text-3xl" style={{ color: "var(--foreground)" }}>
+                  I&apos;m a Farmer
+                </h3>
+                <p className="text-sm leading-relaxed" style={{ color: "hsl(30 8% 45%)" }}>
+                  Post your available supply and get matched with wholesale buyers in
+                  your area. Reduce waste, secure fair prices, and build lasting
+                  relationships with local businesses.
+                </p>
+              </div>
+              <div className="flex items-center gap-2 text-xs font-semibold tracking-[0.15em] uppercase text-green-700">
+                Get started
+                <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
+              </div>
+            </Link>
+
+            {/* Buyer card */}
+            <Link
+              href="/auth?role=buyer"
+              className="hover-lift group flex flex-col gap-8 border p-10"
+              style={{ borderColor: "hsl(30 15% 88%)", backgroundColor: "hsl(40 33% 97%)" }}
+            >
+              <div className="flex h-12 w-12 items-center justify-center bg-amber-600">
+                <ShoppingBasket className="h-6 w-6 text-white" />
+              </div>
+              <div>
+                <p className="mb-1 text-[11px] font-semibold tracking-[0.3em] uppercase text-amber-600">
+                  For Buyers
+                </p>
+                <h3 className="font-serif mb-3 text-2xl md:text-3xl" style={{ color: "var(--foreground)" }}>
+                  I&apos;m a Buyer
+                </h3>
+                <p className="text-sm leading-relaxed" style={{ color: "hsl(30 8% 45%)" }}>
+                  Source fresh, local produce for your restaurant, grocer, or community
+                  organization. Post requests, review AI matches, and track orders
+                  from farm to door.
+                </p>
+              </div>
+              <div className="flex items-center gap-2 text-xs font-semibold tracking-[0.15em] uppercase text-amber-700">
+                Get started
+                <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
+              </div>
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Footer ────────────────────────────────────────────────────── */}
+      <footer style={{ backgroundColor: "var(--foreground)", color: "hsl(40 33% 97%)" }}>
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-6 lg:px-12">
+          <Link href="/" className="font-serif text-lg tracking-tight text-white/80">
+            Farmesh
+          </Link>
+          <p className="text-xs" style={{ color: "hsl(40 33% 97% / 0.35)" }}>
+            &copy; {new Date().getFullYear()} Farmesh — Building stronger local food systems
+          </p>
+          <Link
+            href="/auth"
+            className="text-xs tracking-[0.15em] uppercase transition-colors duration-300 hover:text-white"
+            style={{ color: "hsl(40 33% 97% / 0.45)" }}
+          >
+            Sign in
+          </Link>
+        </div>
+      </footer>
     </div>
   );
 }

@@ -1,6 +1,5 @@
 import type { Match } from "@/types";
 import StatusBadge from "@/components/layout/StatusBadge";
-import { TrendingUp } from "lucide-react";
 
 type FarmerMatchCardProps = {
     match: Match;
@@ -8,38 +7,53 @@ type FarmerMatchCardProps = {
 
 export default function FarmerMatchCard({ match }: FarmerMatchCardProps) {
     return (
-        <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md">
-            <div className="mb-3 flex items-start justify-between">
-                <div>
-                    <h3 className="text-base font-semibold text-gray-900">
+        <div
+            className="hover-lift flex flex-col border p-6 transition-all duration-400"
+            style={{ borderColor: "hsl(30 15% 88%)", backgroundColor: "hsl(40 30% 95%)" }}
+        >
+            {/* Header */}
+            <div className="mb-5 flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                    <h3 className="font-serif truncate text-lg" style={{ color: "var(--foreground)" }}>
                         {match.product}
                     </h3>
-                    <p className="mt-0.5 text-xs text-gray-500">
-                        Request #{match.requestId}
+                    <p className="mt-0.5 text-[11px] tracking-[0.1em] uppercase" style={{ color: "hsl(30 8% 55%)" }}>
+                        vs. Request #{match.requestId}
                     </p>
                 </div>
                 <StatusBadge status={match.status} />
             </div>
 
-            {/* Score */}
-            <div className="mb-3 flex items-center gap-2">
-                <TrendingUp className="h-4 w-4 text-green-600" />
-                <span className="text-sm font-semibold text-green-700">
-                    {match.score}% match score
-                </span>
+            {/* Score bar */}
+            <div className="mb-5">
+                <div className="mb-2 flex items-center justify-between">
+                    <span className="text-[11px] font-semibold tracking-[0.15em] uppercase" style={{ color: "hsl(30 8% 45%)" }}>
+                        Match score
+                    </span>
+                    <span className="font-serif text-xl text-green-700">{match.score}%</span>
+                </div>
+                <div className="h-px w-full" style={{ backgroundColor: "hsl(30 15% 82%)" }}>
+                    <div
+                        className="h-full bg-green-600 transition-all duration-700"
+                        style={{ width: `${match.score}%`, height: "2px" }}
+                    />
+                </div>
             </div>
 
             {/* Explanation */}
-            <p className="mb-4 text-sm leading-relaxed text-gray-600">
+            <p className="mb-5 flex-1 text-sm leading-relaxed" style={{ color: "hsl(30 8% 40%)" }}>
                 {match.reason}
             </p>
 
             {/* Your contribution */}
-            <div className="mb-4 rounded-lg bg-green-50 px-4 py-3">
-                <p className="text-xs font-medium text-green-700">
-                    Your Contribution
+            <div
+                className="mb-5 border-l-2 border-green-600 px-4 py-3"
+                style={{ backgroundColor: "hsl(40 33% 97%)" }}
+            >
+                <p className="text-[11px] font-semibold tracking-[0.15em] uppercase text-green-700">
+                    Your contribution
                 </p>
-                <p className="mt-1 text-sm text-green-900">
+                <p className="mt-1 text-sm" style={{ color: "var(--foreground)" }}>
                     Listing #{match.listingId} — {match.product}
                 </p>
             </div>
@@ -48,13 +62,14 @@ export default function FarmerMatchCard({ match }: FarmerMatchCardProps) {
             <div className="flex gap-2">
                 <button
                     type="button"
-                    className="rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-green-700"
+                    className="bg-green-600 px-5 py-2.5 text-xs font-semibold tracking-[0.12em] uppercase text-white transition-colors duration-300 hover:bg-green-700"
                 >
-                    Accept Interest
+                    Accept
                 </button>
                 <button
                     type="button"
-                    className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-50"
+                    className="border px-5 py-2.5 text-xs font-semibold tracking-[0.12em] uppercase transition-colors duration-300"
+                    style={{ borderColor: "hsl(30 15% 82%)", color: "hsl(30 8% 40%)" }}
                 >
                     View Details
                 </button>

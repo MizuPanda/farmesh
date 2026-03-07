@@ -1,13 +1,21 @@
 @import "tailwindcss";
 
-:root {
-  --background: #f8fafb;
-  --foreground: #1a1a2e;
-}
+/* ─── Design Tokens (FarmeshTemplate aesthetic) ──────────────────────── */
+@theme {
+  /* Fonts — populated at runtime by next/font CSS vars */
+  --font-sans: var(--font-inter), system-ui, sans-serif;
+  --font-serif: var(--font-cormorant), Georgia, serif;
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  /* Warm neutral palette */
+  --color-cream: hsl(40 33% 97%);
+  --color-linen: hsl(35 25% 93%);
+  --color-charcoal: hsl(30 10% 15%);
+  --color-taupe: hsl(30 15% 75%);
+  --color-warm-border: hsl(30 15% 88%);
+  --color-warm-muted: hsl(30 8% 45%);
+  --color-warm-card: hsl(40 30% 95%);
+
+  /* Role accent colors */
   --color-green-50: #f0fdf4;
   --color-green-100: #dcfce7;
   --color-green-200: #bbf7d0;
@@ -21,6 +29,7 @@
   --color-amber-500: #f59e0b;
   --color-amber-600: #d97706;
   --color-amber-700: #b45309;
+  --color-amber-800: #92400e;
   --color-blue-50: #eff6ff;
   --color-blue-100: #dbeafe;
   --color-blue-500: #3b82f6;
@@ -42,19 +51,107 @@
   --color-gray-700: #374151;
   --color-gray-800: #1f2937;
   --color-gray-900: #111827;
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0f1117;
-    --foreground: #ededed;
+/* ─── Base ───────────────────────────────────────────────────────────── */
+:root {
+  --background: hsl(40 33% 97%);
+  --foreground: hsl(30 10% 15%);
+}
+
+@layer base {
+  html { scroll-behavior: smooth; }
+
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-feature-settings: "kern" 1, "liga" 1;
   }
+
+  /* Editorial serif headings */
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-serif);
+    font-weight: 500;
+    letter-spacing: -0.025em;
+  }
+
+  ::selection {
+    background: hsl(140 50% 40% / 0.12);
+    color: hsl(30 10% 15%);
+  }
+
+  /* Thin premium scrollbar */
+  ::-webkit-scrollbar { width: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: hsl(30 15% 75% / 0.4); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: hsl(30 15% 75% / 0.65); }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+/* ─── Component Utilities ────────────────────────────────────────────── */
+@layer components {
+  /* Animated underline for links */
+  .link-underline { position: relative; }
+  .link-underline::after {
+    content: '';
+    position: absolute;
+    bottom: -1px; left: 0;
+    width: 100%; height: 1px;
+    background-color: currentColor;
+    transform-origin: left;
+    transform: scaleX(0);
+    transition: transform 0.5s ease-out;
+  }
+  .link-underline:hover::after { transform: scaleX(1); }
+
+  /* Subtle lift on hover */
+  .hover-lift { transition: transform 0.4s ease-out, box-shadow 0.4s ease-out; }
+  .hover-lift:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 12px 32px -8px hsl(30 10% 15% / 0.1);
+  }
+
+  /* Stagger-in for list children */
+  .stagger-children > * { opacity: 0; animation: stagger-fade-in 0.6s ease-out forwards; }
+  .stagger-children > *:nth-child(1) { animation-delay: 0.08s; }
+  .stagger-children > *:nth-child(2) { animation-delay: 0.16s; }
+  .stagger-children > *:nth-child(3) { animation-delay: 0.24s; }
+  .stagger-children > *:nth-child(4) { animation-delay: 0.32s; }
+  .stagger-children > *:nth-child(5) { animation-delay: 0.40s; }
+  .stagger-children > *:nth-child(6) { animation-delay: 0.48s; }
+}
+
+/* ─── Utilities ──────────────────────────────────────────────────────── */
+@layer utilities {
+  .font-serif { font-family: var(--font-serif); }
+  .font-sans  { font-family: var(--font-sans); }
+  .tracking-editorial { letter-spacing: 0.15em; }
+  .animate-fade-in-up { animation: fade-in-up 0.7s ease-out forwards; }
+  .animate-fade-in    { animation: fade-in 0.5s ease-out forwards; }
+  .animate-ken-burns  { animation: ken-burns 22s ease-out forwards; }
+  .animate-float      { animation: float 6s ease-in-out infinite; }
+}
+
+/* ─── Keyframes ──────────────────────────────────────────────────────── */
+@keyframes fade-in-up {
+  from { opacity: 0; transform: translateY(22px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes stagger-fade-in {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes ken-burns {
+  0%   { transform: scale(1); }
+  100% { transform: scale(1.08); }
+}
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(-6px); }
 }
