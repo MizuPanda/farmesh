@@ -50,17 +50,17 @@ export default function Home() {
         <div className="relative mx-auto flex h-full max-w-7xl flex-col justify-end px-6 pb-24 lg:px-12">
           <div className="animate-fade-in-up max-w-3xl">
             <p className="mb-6 text-[11px] font-semibold tracking-[0.3em] uppercase text-white/70">
-              AI-Powered Local Food Coordination
+              Built for Canadian Local Food Trade
             </p>
             <h1 className="font-serif mb-8 text-5xl leading-[0.9] tracking-tight text-white md:text-7xl lg:text-8xl">
-              Local supply meets
+              Canadian farms meet
               <br />
-              <em className="font-normal not-italic" style={{ fontStyle: "italic" }}>local demand</em>
+              <em className="font-normal not-italic" style={{ fontStyle: "italic" }}>local businesses</em>
             </h1>
             <p className="mb-10 max-w-lg text-base leading-relaxed text-white/75 md:text-lg">
-              Connecting farmers market vendors with restaurants, grocers, and
-              community organizations — using AI to match supply with demand and
-              strengthen local food networks.
+              Connect local Canadian farmers with nearby restaurants, independent
+              grocers, and other food buyers using fast matching that keeps food
+              and revenue in local communities.
             </p>
             <div className="flex flex-col gap-4 sm:flex-row">
               <Link
@@ -96,7 +96,7 @@ export default function Home() {
               How It Works
             </p>
             <h2 className="font-serif text-4xl md:text-5xl" style={{ color: "var(--foreground)" }}>
-              Smarter food coordination
+              Smarter Canadian sourcing
             </h2>
           </div>
 
@@ -105,17 +105,17 @@ export default function Home() {
               {
                 num: "01",
                 title: "Post Supply or Demand",
-                body: "Farmers list available inventory. Buyers post what they need — in plain language or structured form.",
+                body: "Farmers post available harvest. Restaurants and grocers share what they need in plain language or structured form.",
               },
               {
                 num: "02",
                 title: "AI Matches in Real Time",
-                body: "Our AI engine evaluates quantity, proximity, timing, and price to surface the best pairings for both sides.",
+                body: "Matching ranks quantity, distance, timing, and price to surface practical local Canadian pairings for both sides.",
               },
               {
                 num: "03",
-                title: "Confirm & Connect",
-                body: "Accept a match, arrange delivery, and track your order — all within Farmesh.",
+                title: "Confirm & Fulfill",
+                body: "Accept a match, coordinate pickup or delivery, and track every order from farm to kitchen or shelf.",
               },
             ].map(({ num, title, body }) => (
               <div key={num} className="hover-lift border p-8" style={{ borderColor: "var(--border-soft)", backgroundColor: "var(--surface-card)" }}>
@@ -158,9 +158,9 @@ export default function Home() {
                   I&apos;m a Farmer
                 </h3>
                 <p className="text-sm leading-relaxed" style={{ color: "var(--text-muted)" }}>
-                  Post your available supply and get matched with wholesale buyers in
-                  your area. Reduce waste, secure fair prices, and build lasting
-                  relationships with local businesses.
+                  Post available harvest and get matched with nearby Canadian
+                  restaurants, independent grocers, and food businesses. Reduce
+                  waste, move inventory faster, and build recurring local accounts.
                 </p>
               </div>
               <div className="flex items-center gap-2 text-xs font-semibold tracking-[0.15em] uppercase text-green-700">
@@ -186,9 +186,9 @@ export default function Home() {
                   I&apos;m a Buyer
                 </h3>
                 <p className="text-sm leading-relaxed" style={{ color: "var(--text-muted)" }}>
-                  Source fresh, local produce for your restaurant, grocer, or community
-                  organization. Post requests, review AI matches, and track orders
-                  from farm to door.
+                  Source fresh produce from local Canadian farms for your
+                  restaurant or small grocer. Post demand, review ranked matches,
+                  and track fulfillment from farm to door.
                 </p>
               </div>
               <div className="flex items-center gap-2 text-xs font-semibold tracking-[0.15em] uppercase text-amber-700">
@@ -207,7 +207,7 @@ export default function Home() {
             Farmesh
           </Link>
           <p className="text-xs" style={{ color: "hsl(40 33% 97% / 0.62)" }}>
-            &copy; {new Date().getFullYear()} Farmesh — Building stronger local food systems
+            &copy; {new Date().getFullYear()} Farmesh — Strengthening Canada&apos;s local food economy
           </p>
           <Link
             href="/auth"

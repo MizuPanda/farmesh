@@ -1,6 +1,6 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Sprout, Bell, LogOut } from "lucide-react";
 import { getUser } from "@/lib/auth";
@@ -10,18 +10,6 @@ import type { User } from "@/types";
 type AppNavProps = {
   unreadCount?: number;
 };
-
-const subscribeToSession = (onStoreChange: () => void) => {
-  if (typeof window === "undefined") return () => {};
-  const onStorage = (event: StorageEvent) => {
-    if (event.key === "farmesh_session") onStoreChange();
-  };
-  window.addEventListener("storage", onStorage);
-  return () => window.removeEventListener("storage", onStorage);
-};
-
-const getSessionSnapshot = () => getStoredUser();
-const getSessionServerSnapshot = () => null;
 
 export default function AppNav({ unreadCount = 0 }: AppNavProps) {
   const [user, setUser] = useState<User | null>(null);

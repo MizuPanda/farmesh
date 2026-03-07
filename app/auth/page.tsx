@@ -92,7 +92,7 @@ function AuthForm() {
 
           {/* Page heading */}
           <p className="mb-1 text-[11px] font-semibold tracking-[0.3em] uppercase" style={{ color: "var(--text-muted)" }}>
-            Welcome to Farmesh
+            Canadian Farm-to-Business Network
           </p>
           <h1 className="font-serif mb-8 text-3xl" style={{ color: "var(--foreground)" }}>
             {mode === "signin" ? "Sign in" : "Create account"}
@@ -181,7 +181,7 @@ function AuthForm() {
             {mode === "signup" && (
               <div>
                 <label htmlFor="businessName" className="mb-1.5 block text-[11px] font-semibold tracking-[0.15em] uppercase" style={{ color: "var(--text-muted)" }}>
-                  {isFarmer ? "Farm name" : "Business / org name"}
+                  {isFarmer ? "Farm name" : "Restaurant / grocer name"}
                   <span className="ml-1 font-normal tracking-normal normal-case" style={{ color: "var(--text-faint)" }}>(optional)</span>
                 </label>
                 <input
@@ -189,7 +189,7 @@ function AuthForm() {
                   type="text"
                   value={businessName}
                   onChange={(e) => setBusinessName(e.target.value)}
-                  placeholder={isFarmer ? "e.g. Green Acres Farm" : "e.g. The Local Kitchen"}
+                  placeholder={isFarmer ? "e.g. Green Acres Farm" : "e.g. Maple Street Bistro"}
                   className={inputBase}
                   style={{ borderColor: "var(--border-soft)", backgroundColor: "var(--surface-base)", color: "var(--foreground)" }}
                   onFocus={(e) => (e.currentTarget.style.borderColor = "var(--border-focus)")}

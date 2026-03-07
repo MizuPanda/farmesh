@@ -5,7 +5,7 @@ export const farmerListings: Listing[] = [
     {
         id: "l1",
         vendorId: "f1",
-        rawInput: "I have 60 lbs of baby greens available this week for bulk sale",
+        rawInput: "I have 60 lbs of baby greens available this week for Toronto restaurant and grocer buyers",
         product: "Mixed Baby Greens",
         quantity: 60,
         unit: "lb",
@@ -58,7 +58,7 @@ export const buyerRequests: Request[] = [
         id: "r1",
         buyerId: "b1",
         rawInput:
-            "Need 100 lbs of high-quality salad greens, organic preferred, by Friday",
+            "Need 100 lbs of high-quality salad greens for two Toronto restaurants, organic preferred, by Friday",
         product: "Salad Greens",
         quantity: 100,
         unit: "lb",
@@ -69,7 +69,7 @@ export const buyerRequests: Request[] = [
     {
         id: "r2",
         buyerId: "b1",
-        rawInput: "Looking for 50 lbs of spinach for restaurant supply",
+        rawInput: "Looking for 50 lbs of spinach for a neighbourhood grocer produce section",
         product: "Spinach",
         quantity: 50,
         unit: "lb",
@@ -88,7 +88,7 @@ export const farmerMatches: Match[] = [
         score: 92,
         product: "Mixed Baby Greens",
         reason:
-            "Strong match — buyer needs 100 lb salad greens and your 60 lb baby greens listing covers 60% of the request. Farmesh AI recommends this match.",
+            "Strong match — the buyer needs 100 lb salad greens and your 60 lb baby greens listing covers 60% of the request. Farmesh recommends this local Canadian match.",
         status: "PROPOSED",
         createdAt: "2026-03-06",
     },
@@ -114,7 +114,7 @@ export const buyerMatches: Match[] = [
         score: 95,
         product: "Salad Greens — Split Vendor Match",
         reason:
-            "Farmesh AI combined two vendors to fulfill your 100 lb salad greens request: 60 lb baby greens from Green Acres Farm + 40 lb organic spinach from Sunny Fields. Total: 100 lb at 100% fulfillment.",
+            "Farmesh combined two nearby farms to fulfill your 100 lb salad greens request: 60 lb baby greens from Green Acres Farm + 40 lb organic spinach from Maple Ridge Farm. Total: 100 lb at 100% fulfillment.",
         status: "PROPOSED",
         createdAt: "2026-03-06",
     },
@@ -125,7 +125,7 @@ export const buyerMatches: Match[] = [
         score: 78,
         product: "Salad Greens — Single Vendor",
         reason:
-            "Partial match: 40 lb certified organic spinach from Sunny Fields covers 40% of your 100 lb request. Higher price per unit but certified organic quality.",
+            "Partial match: 40 lb certified organic spinach from Maple Ridge Farm covers 40% of your 100 lb request. Higher price per unit but certified organic quality.",
         status: "PROPOSED",
         createdAt: "2026-03-06",
     },
@@ -136,7 +136,7 @@ export const buyerOrders: Order[] = [
     {
         id: "o1",
         title: "Organic Spinach Bulk Order",
-        vendors: ["Sunny Fields Farm"],
+        vendors: ["Maple Ridge Farm"],
         quantity: "50 lb Spinach",
         status: "In Transit",
         deliveryTarget: "March 8, 2026",
@@ -144,7 +144,7 @@ export const buyerOrders: Order[] = [
     {
         id: "o2",
         title: "Mixed Greens Weekly Supply",
-        vendors: ["Green Acres Farm", "Valley Produce"],
+        vendors: ["Green Acres Farm", "Niagara Valley Produce"],
         quantity: "80 lb Mixed Greens",
         status: "Delivered",
         deliveryTarget: "March 1, 2026",
@@ -152,7 +152,7 @@ export const buyerOrders: Order[] = [
     {
         id: "o3",
         title: "Heirloom Tomato Order",
-        vendors: ["Heritage Farms"],
+        vendors: ["Heritage Farms Ontario"],
         quantity: "30 lb Heirloom Tomatoes",
         status: "Pending",
         deliveryTarget: "March 10, 2026",
@@ -184,7 +184,7 @@ export const farmerNotifications: Notification[] = [
 export const buyerNotifications: Notification[] = [
     {
         id: "n4",
-        message: "Farmesh AI found a split-vendor match for your salad greens request",
+        message: "Farmesh found a split-farm match for your salad greens request from local Canadian growers",
         time: "1 hour ago",
         read: false,
     },
