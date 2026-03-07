@@ -8,7 +8,7 @@ export default function Home() {
       {/* ── Header ────────────────────────────────────────────────────── */}
       <header
         className="sticky top-0 z-50 border-b transition-all duration-500"
-        style={{ borderColor: "hsl(30 15% 88%)", backgroundColor: "hsl(40 33% 97% / 0.9)", backdropFilter: "blur(8px)" }}
+        style={{ borderColor: "var(--border-soft)", backgroundColor: "hsl(40 33% 97% / 0.96)", backdropFilter: "blur(8px)" }}
       >
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4 lg:px-12">
           {/* Logo */}
@@ -24,7 +24,7 @@ export default function Home() {
           <Link
             href="/auth"
             className="link-underline text-xs font-medium tracking-[0.15em] uppercase transition-colors duration-300"
-            style={{ color: "hsl(30 8% 45%)" }}
+            style={{ color: "var(--text-muted)" }}
           >
             Sign in
           </Link>
@@ -118,10 +118,10 @@ export default function Home() {
                 body: "Accept a match, arrange delivery, and track your order — all within Farmesh.",
               },
             ].map(({ num, title, body }) => (
-              <div key={num} className="hover-lift border p-8" style={{ borderColor: "hsl(30 15% 88%)", backgroundColor: "hsl(40 30% 95%)" }}>
+              <div key={num} className="hover-lift border p-8" style={{ borderColor: "var(--border-soft)", backgroundColor: "var(--surface-card)" }}>
                 <p className="mb-4 font-serif text-4xl text-green-600/30">{num}</p>
                 <h3 className="font-serif mb-3 text-xl" style={{ color: "var(--foreground)" }}>{title}</h3>
-                <p className="text-sm leading-relaxed" style={{ color: "hsl(30 8% 45%)" }}>{body}</p>
+                <p className="text-sm leading-relaxed" style={{ color: "var(--text-muted)" }}>{body}</p>
               </div>
             ))}
           </div>
@@ -129,7 +129,7 @@ export default function Home() {
       </section>
 
       {/* ── Role Cards ────────────────────────────────────────────────── */}
-      <section className="py-24 md:py-32" style={{ backgroundColor: "hsl(35 25% 93%)" }}>
+      <section className="py-24 md:py-32" style={{ backgroundColor: "var(--surface-muted)" }}>
         <div className="mx-auto max-w-7xl px-6 lg:px-12">
           <div className="mb-16 text-center">
             <p className="mb-3 text-[11px] font-semibold tracking-[0.3em] uppercase text-green-600">
@@ -145,7 +145,7 @@ export default function Home() {
             <Link
               href="/auth?role=farmer"
               className="hover-lift group flex flex-col gap-8 border p-10"
-              style={{ borderColor: "hsl(30 15% 88%)", backgroundColor: "hsl(40 33% 97%)" }}
+              style={{ borderColor: "var(--border-soft)", backgroundColor: "var(--surface-base)" }}
             >
               <div className="flex h-12 w-12 items-center justify-center bg-green-600">
                 <Sprout className="h-6 w-6 text-white" />
@@ -157,7 +157,7 @@ export default function Home() {
                 <h3 className="font-serif mb-3 text-2xl md:text-3xl" style={{ color: "var(--foreground)" }}>
                   I&apos;m a Farmer
                 </h3>
-                <p className="text-sm leading-relaxed" style={{ color: "hsl(30 8% 45%)" }}>
+                <p className="text-sm leading-relaxed" style={{ color: "var(--text-muted)" }}>
                   Post your available supply and get matched with wholesale buyers in
                   your area. Reduce waste, secure fair prices, and build lasting
                   relationships with local businesses.
@@ -173,7 +173,7 @@ export default function Home() {
             <Link
               href="/auth?role=buyer"
               className="hover-lift group flex flex-col gap-8 border p-10"
-              style={{ borderColor: "hsl(30 15% 88%)", backgroundColor: "hsl(40 33% 97%)" }}
+              style={{ borderColor: "var(--border-soft)", backgroundColor: "var(--surface-base)" }}
             >
               <div className="flex h-12 w-12 items-center justify-center bg-amber-600">
                 <ShoppingBasket className="h-6 w-6 text-white" />
@@ -185,7 +185,7 @@ export default function Home() {
                 <h3 className="font-serif mb-3 text-2xl md:text-3xl" style={{ color: "var(--foreground)" }}>
                   I&apos;m a Buyer
                 </h3>
-                <p className="text-sm leading-relaxed" style={{ color: "hsl(30 8% 45%)" }}>
+                <p className="text-sm leading-relaxed" style={{ color: "var(--text-muted)" }}>
                   Source fresh, local produce for your restaurant, grocer, or community
                   organization. Post requests, review AI matches, and track orders
                   from farm to door.
@@ -201,18 +201,18 @@ export default function Home() {
       </section>
 
       {/* ── Footer ────────────────────────────────────────────────────── */}
-      <footer style={{ backgroundColor: "var(--foreground)", color: "hsl(40 33% 97%)" }}>
+      <footer style={{ backgroundColor: "var(--foreground)", color: "var(--surface-base)" }}>
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-6 lg:px-12">
           <Link href="/" className="font-serif text-lg tracking-tight text-white/80">
             Farmesh
           </Link>
-          <p className="text-xs" style={{ color: "hsl(40 33% 97% / 0.35)" }}>
+          <p className="text-xs" style={{ color: "hsl(40 33% 97% / 0.62)" }}>
             &copy; {new Date().getFullYear()} Farmesh — Building stronger local food systems
           </p>
           <Link
             href="/auth"
             className="text-xs tracking-[0.15em] uppercase transition-colors duration-300 hover:text-white"
-            style={{ color: "hsl(40 33% 97% / 0.45)" }}
+            style={{ color: "hsl(40 33% 97% / 0.78)" }}
           >
             Sign in
           </Link>
