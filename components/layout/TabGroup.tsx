@@ -26,7 +26,7 @@ export default function TabGroup({
     return (
         <div
             className="flex border-b"
-            style={{ borderColor: "hsl(30 15% 88%)" }}
+            style={{ borderColor: "var(--border-soft)" }}
         >
             {tabs.map((tab) => {
                 const isActive = activeTab === tab.value;
@@ -37,7 +37,7 @@ export default function TabGroup({
                         className="px-5 py-3 text-xs font-semibold tracking-[0.12em] uppercase transition-all duration-300"
                         style={{
                             borderBottom: isActive ? `2px solid ${accent}` : "2px solid transparent",
-                            color: isActive ? accent : "hsl(30 8% 45%)",
+                            color: isActive ? accent : "var(--text-muted)",
                             marginBottom: "-1px",
                         }}
                     >

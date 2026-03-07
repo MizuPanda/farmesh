@@ -7,15 +7,15 @@ type RequestsTableProps = {
 
 export default function RequestsTable({ requests }: RequestsTableProps) {
     return (
-        <div className="overflow-x-auto border" style={{ borderColor: "hsl(30 15% 88%)" }}>
+        <div className="overflow-x-auto border" style={{ borderColor: "var(--border-soft)" }}>
             <table className="w-full text-left text-sm">
                 <thead>
-                    <tr className="border-b" style={{ borderColor: "hsl(30 15% 88%)", backgroundColor: "hsl(35 25% 93%)" }}>
+                    <tr className="border-b" style={{ borderColor: "var(--border-soft)", backgroundColor: "var(--surface-muted)" }}>
                         {["Product", "Quantity", "Budget / unit", "Posted", "Status"].map((h) => (
                             <th
                                 key={h}
                                 className="px-5 py-3 text-[11px] font-semibold tracking-[0.15em] uppercase"
-                                style={{ color: "hsl(30 8% 45%)" }}
+                                style={{ color: "var(--text-muted)" }}
                             >
                                 {h}
                             </th>
@@ -27,20 +27,20 @@ export default function RequestsTable({ requests }: RequestsTableProps) {
                         <tr
                             key={request.id}
                             className="border-b last:border-0 transition-colors duration-200"
-                            style={{ borderColor: "hsl(30 15% 92%)", backgroundColor: "hsl(40 33% 97%)" }}
-                            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "hsl(40 30% 95%)")}
-                            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "hsl(40 33% 97%)")}
+                            style={{ borderColor: "var(--border-subtle)", backgroundColor: "var(--surface-base)" }}
+                            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "var(--surface-card)")}
+                            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "var(--surface-base)")}
                         >
                             <td className="px-5 py-4 font-medium" style={{ color: "var(--foreground)" }}>
                                 {request.product}
                             </td>
-                            <td className="px-5 py-4 text-sm" style={{ color: "hsl(30 8% 40%)" }}>
+                            <td className="px-5 py-4 text-sm" style={{ color: "var(--text-muted)" }}>
                                 {request.quantity} {request.unit}
                             </td>
-                            <td className="px-5 py-4 text-sm" style={{ color: "hsl(30 8% 40%)" }}>
+                            <td className="px-5 py-4 text-sm" style={{ color: "var(--text-muted)" }}>
                                 ${request.pricePerUnit.toFixed(2)} / {request.unit}
                             </td>
-                            <td className="px-5 py-4 text-sm" style={{ color: "hsl(30 8% 55%)" }}>
+                            <td className="px-5 py-4 text-sm" style={{ color: "var(--text-subtle)" }}>
                                 {request.createdAt}
                             </td>
                             <td className="px-5 py-4">

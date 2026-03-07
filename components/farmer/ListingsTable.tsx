@@ -9,16 +9,16 @@ export default function ListingsTable({ listings }: ListingsTableProps) {
     return (
         <div
             className="overflow-x-auto border"
-            style={{ borderColor: "hsl(30 15% 88%)" }}
+            style={{ borderColor: "var(--border-soft)" }}
         >
             <table className="w-full text-left text-sm">
                 <thead>
-                    <tr className="border-b" style={{ borderColor: "hsl(30 15% 88%)", backgroundColor: "hsl(35 25% 93%)" }}>
+                    <tr className="border-b" style={{ borderColor: "var(--border-soft)", backgroundColor: "var(--surface-muted)" }}>
                         {["Product", "Quantity", "Price", "Expires", "Status"].map((h) => (
                             <th
                                 key={h}
                                 className="px-5 py-3 text-[11px] font-semibold tracking-[0.15em] uppercase"
-                                style={{ color: "hsl(30 8% 45%)" }}
+                                style={{ color: "var(--text-muted)" }}
                             >
                                 {h}
                             </th>
@@ -33,23 +33,23 @@ export default function ListingsTable({ listings }: ListingsTableProps) {
                                 key={listing.id}
                                 className="border-b last:border-0 transition-colors duration-200"
                                 style={{
-                                    borderColor: "hsl(30 15% 92%)",
-                                    opacity: isExpired ? 0.45 : 1,
-                                    backgroundColor: "hsl(40 33% 97%)",
+                                    borderColor: "var(--border-subtle)",
+                                    opacity: isExpired ? 0.68 : 1,
+                                    backgroundColor: "var(--surface-base)",
                                 }}
-                                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "hsl(40 30% 95%)")}
-                                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "hsl(40 33% 97%)")}
+                                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "var(--surface-card)")}
+                                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "var(--surface-base)")}
                             >
                                 <td className="px-5 py-4 font-medium" style={{ color: "var(--foreground)" }}>
                                     {listing.product}
                                 </td>
-                                <td className="px-5 py-4 text-sm" style={{ color: "hsl(30 8% 40%)" }}>
+                                <td className="px-5 py-4 text-sm" style={{ color: "var(--text-muted)" }}>
                                     {listing.quantity} {listing.unit}
                                 </td>
-                                <td className="px-5 py-4 text-sm" style={{ color: "hsl(30 8% 40%)" }}>
+                                <td className="px-5 py-4 text-sm" style={{ color: "var(--text-muted)" }}>
                                     ${listing.pricePerUnit.toFixed(2)} / {listing.unit}
                                 </td>
-                                <td className="px-5 py-4 text-sm" style={{ color: "hsl(30 8% 55%)" }}>
+                                <td className="px-5 py-4 text-sm" style={{ color: "var(--text-subtle)" }}>
                                     {listing.expirationDate ?? "—"}
                                 </td>
                                 <td className="px-5 py-4">

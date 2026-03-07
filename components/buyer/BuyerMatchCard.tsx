@@ -17,10 +17,10 @@ export default function BuyerMatchCard({
         <div
             className="hover-lift border p-6 transition-all duration-400"
             style={{
-                borderColor: recommended ? "#fde68a" : "hsl(30 15% 88%)",
-                backgroundColor: recommended ? "#fffbeb" : "hsl(40 30% 95%)",
+                borderColor: recommended ? "#fde68a" : "var(--border-soft)",
+                backgroundColor: recommended ? "#fffbeb" : "var(--surface-card)",
                 borderLeftWidth: recommended ? "3px" : "1px",
-                borderLeftColor: recommended ? "#d97706" : "hsl(30 15% 88%)",
+                borderLeftColor: recommended ? "#d97706" : "var(--border-soft)",
             }}
         >
             {/* Recommended badge */}
@@ -44,12 +44,12 @@ export default function BuyerMatchCard({
             {/* Score bar */}
             <div className="mb-5">
                 <div className="mb-2 flex items-center justify-between">
-                    <span className="text-[11px] font-semibold tracking-[0.15em] uppercase" style={{ color: "hsl(30 8% 45%)" }}>
+                    <span className="text-[11px] font-semibold tracking-[0.15em] uppercase" style={{ color: "var(--text-muted)" }}>
                         Match score
                     </span>
                     <span className="font-serif text-xl text-amber-700">{match.score}%</span>
                 </div>
-                <div style={{ height: "2px", backgroundColor: "hsl(30 15% 82%)" }}>
+                <div style={{ height: "2px", backgroundColor: "var(--border-default)" }}>
                     <div
                         className="h-full bg-amber-600 transition-all duration-700"
                         style={{ width: `${match.score}%` }}
@@ -58,18 +58,18 @@ export default function BuyerMatchCard({
             </div>
 
             {/* Explanation */}
-            <p className="mb-5 text-sm leading-relaxed" style={{ color: "hsl(30 8% 40%)" }}>
+            <p className="mb-5 text-sm leading-relaxed" style={{ color: "var(--text-muted)" }}>
                 {match.reason}
             </p>
 
             {/* Vendor details */}
             <div className="mb-5">
-                <p className="mb-2 text-[11px] font-semibold tracking-[0.15em] uppercase" style={{ color: "hsl(30 8% 45%)" }}>
+                <p className="mb-2 text-[11px] font-semibold tracking-[0.15em] uppercase" style={{ color: "var(--text-muted)" }}>
                     Vendor details
                 </p>
                 <div
                     className="border px-4 py-3 text-sm"
-                    style={{ borderColor: "hsl(30 15% 88%)", backgroundColor: "hsl(40 33% 97%)", color: "hsl(30 8% 40%)" }}
+                    style={{ borderColor: "var(--border-soft)", backgroundColor: "var(--surface-base)", color: "var(--text-muted)" }}
                 >
                     Listing #{match.listingId} — {match.product}
                 </div>
@@ -86,7 +86,7 @@ export default function BuyerMatchCard({
                 <button
                     type="button"
                     className="border px-5 py-2.5 text-xs font-semibold tracking-[0.12em] uppercase transition-colors duration-300"
-                    style={{ borderColor: "hsl(30 15% 82%)", color: "hsl(30 8% 40%)" }}
+                    style={{ borderColor: "var(--border-default)", color: "var(--text-muted)" }}
                 >
                     Decline
                 </button>

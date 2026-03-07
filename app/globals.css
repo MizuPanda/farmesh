@@ -12,7 +12,7 @@
   --color-charcoal: hsl(30 10% 15%);
   --color-taupe: hsl(30 15% 75%);
   --color-warm-border: hsl(30 15% 88%);
-  --color-warm-muted: hsl(30 8% 45%);
+  --color-warm-muted: hsl(30 10% 30%);
   --color-warm-card: hsl(40 30% 95%);
 
   /* Role accent colors */
@@ -55,8 +55,22 @@
 
 /* ─── Base ───────────────────────────────────────────────────────────── */
 :root {
-  --background: hsl(40 33% 97%);
-  --foreground: hsl(30 10% 15%);
+  --surface-base: hsl(40 33% 97%);
+  --surface-muted: hsl(35 25% 92%);
+  --surface-card: hsl(40 30% 95%);
+
+  --border-subtle: hsl(30 15% 88%);
+  --border-soft: hsl(30 15% 82%);
+  --border-default: hsl(30 15% 76%);
+  --border-focus: hsl(30 18% 58%);
+
+  --text-default: hsl(30 10% 15%);
+  --text-muted: hsl(30 10% 30%);
+  --text-subtle: hsl(30 8% 38%);
+  --text-faint: hsl(30 8% 46%);
+
+  --background: var(--surface-base);
+  --foreground: var(--text-default);
 }
 
 @layer base {
@@ -69,6 +83,12 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     font-feature-settings: "kern" 1, "liga" 1;
+  }
+
+  input::placeholder,
+  textarea::placeholder {
+    color: var(--text-faint);
+    opacity: 1;
   }
 
   /* Editorial serif headings */

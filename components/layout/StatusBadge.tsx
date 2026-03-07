@@ -7,7 +7,7 @@ type StyleMap = Record<string, { border: string; bg: string; color: string }>;
 const styleMap: StyleMap = {
     OPEN:                   { border: "#bbf7d0", bg: "#f0fdf4", color: "#166534" },
     MATCHED:                { border: "#bfdbfe", bg: "#eff6ff", color: "#1d4ed8" },
-    EXPIRED:                { border: "hsl(30 15% 82%)", bg: "hsl(35 25% 93%)", color: "hsl(30 8% 45%)" },
+    EXPIRED:                { border: "var(--border-default)", bg: "var(--surface-muted)", color: "var(--text-muted)" },
     PROPOSED:               { border: "#fde68a", bg: "#fffbeb", color: "#92400e" },
     AWAITING_CONFIRMATION:  { border: "#fde68a", bg: "#fffbeb", color: "#92400e" },
     CONFIRMED:              { border: "#bbf7d0", bg: "#f0fdf4", color: "#166534" },
@@ -18,7 +18,7 @@ const styleMap: StyleMap = {
     Cancelled:              { border: "#fecaca", bg: "#fef2f2", color: "#dc2626" },
 };
 
-const fallback = { border: "hsl(30 15% 82%)", bg: "hsl(35 25% 93%)", color: "hsl(30 8% 45%)" };
+const fallback = { border: "var(--border-default)", bg: "var(--surface-muted)", color: "var(--text-muted)" };
 
 export default function StatusBadge({ status }: StatusBadgeProps) {
     const s = styleMap[status] ?? fallback;

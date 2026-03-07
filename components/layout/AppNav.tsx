@@ -1,23 +1,34 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Sprout, Bell, LogOut } from "lucide-react";
 import { getStoredUser, signOut } from "@/lib/auth";
-import type { User } from "@/types";
 
 type AppNavProps = {
   unreadCount?: number;
 };
 
+const subscribeToSession = (onStoreChange: () => void) => {
+  if (typeof window === "undefined") return () => {};
+  const onStorage = (event: StorageEvent) => {
+    if (event.key === "farmesh_session") onStoreChange();
+  };
+  window.addEventListener("storage", onStorage);
+  return () => window.removeEventListener("storage", onStorage);
+};
+
+const getSessionSnapshot = () => getStoredUser();
+const getSessionServerSnapshot = () => null;
+
 export default function AppNav({ unreadCount = 0 }: AppNavProps) {
   const router = useRouter();
-  const [user, setUser] = useState<User | null>(null);
-
-  useEffect(() => {
-    setUser(getStoredUser());
-  }, []);
+  const user = useSyncExternalStore(
+    subscribeToSession,
+    getSessionSnapshot,
+    getSessionServerSnapshot
+  );
 
   const handleSignOut = async () => {
     await signOut();
@@ -30,8 +41,8 @@ export default function AppNav({ unreadCount = 0 }: AppNavProps) {
     <header
       className="sticky top-0 z-50 border-b transition-all duration-500"
       style={{
-        borderColor: "hsl(30 15% 88%)",
-        backgroundColor: "hsl(40 33% 97% / 0.92)",
+        borderColor: "var(--border-soft)",
+        backgroundColor: "hsl(40 33% 97% / 0.96)",
         backdropFilter: "blur(8px)",
       }}
     >
@@ -50,7 +61,7 @@ export default function AppNav({ unreadCount = 0 }: AppNavProps) {
         <div className="flex items-center gap-3">
           {user && (
             <div className="hidden items-center gap-3 sm:flex">
-              <span className="max-w-[180px] truncate text-xs" style={{ color: "hsl(30 8% 45%)" }}>
+              <span className="max-w-[180px] truncate text-xs" style={{ color: "var(--text-muted)" }}>
                 {user.businessName || user.email}
               </span>
               <span
@@ -69,10 +80,10 @@ export default function AppNav({ unreadCount = 0 }: AppNavProps) {
           <button
             type="button"
             className="relative p-2 transition-colors duration-300"
-            style={{ color: "hsl(30 8% 55%)" }}
+            style={{ color: "var(--text-subtle)" }}
             aria-label="Notifications"
             onMouseEnter={(e) => (e.currentTarget.style.color = "var(--foreground)")}
-            onMouseLeave={(e) => (e.currentTarget.style.color = "hsl(30 8% 55%)")}
+            onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-subtle)")}
           >
             <Bell className="h-4 w-4" />
             {unreadCount > 0 && (
@@ -84,10 +95,10 @@ export default function AppNav({ unreadCount = 0 }: AppNavProps) {
             type="button"
             onClick={handleSignOut}
             className="p-2 transition-colors duration-300"
-            style={{ color: "hsl(30 8% 55%)" }}
+            style={{ color: "var(--text-subtle)" }}
             aria-label="Sign out"
             onMouseEnter={(e) => (e.currentTarget.style.color = "var(--foreground)")}
-            onMouseLeave={(e) => (e.currentTarget.style.color = "hsl(30 8% 55%)")}
+            onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-subtle)")}
           >
             <LogOut className="h-4 w-4" />
           </button>
