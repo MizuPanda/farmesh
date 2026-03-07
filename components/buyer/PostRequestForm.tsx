@@ -5,82 +5,73 @@ type PostRequestFormProps = {
     onClose: () => void;
 };
 
+const inputCls = "w-full border px-3 py-2 text-sm font-sans outline-none transition-colors duration-200";
+const inputStyle = { borderColor: "hsl(30 15% 82%)", backgroundColor: "hsl(40 33% 97%)", color: "var(--foreground)" } as const;
+
 export default function PostRequestForm({ onClose }: PostRequestFormProps) {
     return (
-        <div className="space-y-6">
+        <div className="space-y-4">
             {/* Text Input Card */}
-            <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-                <h3 className="mb-3 text-lg font-semibold text-gray-900">
+            <div className="border p-6" style={{ borderColor: "hsl(30 15% 88%)", backgroundColor: "hsl(40 33% 97%)" }}>
+                <p className="mb-1 text-[11px] font-semibold tracking-[0.25em] uppercase text-amber-700">
+                    New Request
+                </p>
+                <h3 className="font-serif mb-4 text-xl" style={{ color: "var(--foreground)" }}>
                     Post New Request
                 </h3>
+
                 <textarea
-                    rows={4}
+                    rows={3}
                     placeholder="Need 100 lbs of high-quality salad greens, organic preferred, by Friday"
-                    className="w-full resize-none rounded-lg border border-gray-300 px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+                    className="w-full resize-none border px-4 py-3 text-sm font-sans outline-none transition-colors duration-200"
+                    style={{ borderColor: "hsl(30 15% 82%)", backgroundColor: "hsl(40 30% 95%)", color: "var(--foreground)" }}
+                    onFocus={(e) => (e.currentTarget.style.borderColor = "#d97706")}
+                    onBlur={(e) => (e.currentTarget.style.borderColor = "hsl(30 15% 82%)")}
                 />
 
-                {/* Optional structured fields */}
+                {/* Structured fields */}
                 <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
-                    <div>
-                        <label className="mb-1 block text-xs font-medium text-gray-500">
-                            Product
-                        </label>
-                        <input
-                            type="text"
-                            placeholder="e.g. Salad Greens"
-                            className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder-gray-300 focus:border-amber-500 focus:outline-none"
-                        />
-                    </div>
-                    <div>
-                        <label className="mb-1 block text-xs font-medium text-gray-500">
-                            Quantity needed
-                        </label>
-                        <input
-                            type="number"
-                            placeholder="100"
-                            className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder-gray-300 focus:border-amber-500 focus:outline-none"
-                        />
-                    </div>
-                    <div>
-                        <label className="mb-1 block text-xs font-medium text-gray-500">
-                            Unit
-                        </label>
-                        <input
-                            type="text"
-                            placeholder="lb"
-                            className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder-gray-300 focus:border-amber-500 focus:outline-none"
-                        />
-                    </div>
-                    <div>
-                        <label className="mb-1 block text-xs font-medium text-gray-500">
-                            Required by
-                        </label>
-                        <input
-                            type="text"
-                            placeholder="e.g. Friday"
-                            className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder-gray-300 focus:border-amber-500 focus:outline-none"
-                        />
-                    </div>
+                    {[
+                        { label: "Product", type: "text", placeholder: "e.g. Salad Greens" },
+                        { label: "Quantity needed", type: "number", placeholder: "100" },
+                        { label: "Unit", type: "text", placeholder: "lb" },
+                        { label: "Required by", type: "text", placeholder: "e.g. Friday" },
+                    ].map(({ label, type, placeholder }) => (
+                        <div key={label}>
+                            <label className="mb-1 block text-[11px] font-semibold tracking-[0.12em] uppercase" style={{ color: "hsl(30 8% 45%)" }}>
+                                {label}
+                            </label>
+                            <input
+                                type={type}
+                                placeholder={placeholder}
+                                className={inputCls}
+                                style={inputStyle}
+                                onFocus={(e) => (e.currentTarget.style.borderColor = "#d97706")}
+                                onBlur={(e) => (e.currentTarget.style.borderColor = "hsl(30 15% 82%)")}
+                            />
+                        </div>
+                    ))}
 
-                    <div className="flex items-end gap-4">
-                        <label className="flex items-center gap-2 text-sm text-gray-700">
-                            <input type="checkbox" className="rounded accent-amber-600" />
+                    <div className="flex items-end">
+                        <label className="flex items-center gap-2 text-sm" style={{ color: "hsl(30 8% 40%)" }}>
+                            <input type="checkbox" className="accent-amber-600" />
                             Allow substitutions
                         </label>
                     </div>
                 </div>
 
-                <div className="mt-4 flex gap-2">
+                <div className="mt-5 flex gap-2">
                     <button
                         type="button"
-                        className="rounded-lg bg-amber-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-amber-700"
+                        className="bg-amber-600 px-6 py-2.5 text-xs font-semibold tracking-[0.12em] uppercase text-white transition-colors duration-300 hover:bg-amber-700"
                     >
                         Submit
                     </button>
                     <button
                         type="button"
                         onClick={onClose}
-                        className="rounded-lg border border-gray-200 px-5 py-2.5 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-50"
+                        className="border px-6 py-2.5 text-xs font-semibold tracking-[0.12em] uppercase transition-colors duration-300"
+                        style={{ borderColor: "hsl(30 15% 82%)", color: "hsl(30 8% 40%)" }}
                     >
                         Cancel
                     </button>
@@ -88,39 +79,25 @@ export default function PostRequestForm({ onClose }: PostRequestFormProps) {
             </div>
 
             {/* AI Interpreted Request */}
-            <div className="rounded-xl border border-amber-200 bg-amber-50 p-5">
-                <div className="mb-3 flex items-center gap-2">
-                    <Sparkles className="h-4 w-4 text-amber-600" />
-                    <h4 className="text-sm font-semibold text-amber-800">
+            <div className="border-l-2 border-amber-600 p-5" style={{ backgroundColor: "hsl(40 33% 97%)", borderTopColor: "transparent", borderRightColor: "hsl(30 15% 88%)", borderBottomColor: "hsl(30 15% 88%)" }}>
+                <div className="mb-4 flex items-center gap-2">
+                    <Sparkles className="h-3.5 w-3.5 text-amber-600" />
+                    <p className="text-[11px] font-semibold tracking-[0.2em] uppercase text-amber-700">
                         AI Interpreted Request
-                    </h4>
+                    </p>
                 </div>
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                    <div>
-                        <p className="text-xs text-amber-600">Product</p>
-                        <p className="text-sm font-medium text-amber-900">
-                            {parsedRequestPreview.product}
-                        </p>
-                    </div>
-                    <div>
-                        <p className="text-xs text-amber-600">Quantity</p>
-                        <p className="text-sm font-medium text-amber-900">
-                            {parsedRequestPreview.quantity} {parsedRequestPreview.unit}
-                        </p>
-                    </div>
-                    <div>
-                        <p className="text-xs text-amber-600">Required by</p>
-                        <p className="text-sm font-medium text-amber-900">
-                            {parsedRequestPreview.requiredBy}
-                        </p>
-                    </div>
-
-                    <div>
-                        <p className="text-xs text-amber-600">Substitutions</p>
-                        <p className="text-sm font-medium text-amber-900">
-                            {parsedRequestPreview.allowSubstitutions ? "Allowed" : "Not allowed"}
-                        </p>
-                    </div>
+                <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                    {[
+                        { label: "Product", value: parsedRequestPreview.product },
+                        { label: "Quantity", value: `${parsedRequestPreview.quantity} ${parsedRequestPreview.unit}` },
+                        { label: "Required by", value: parsedRequestPreview.requiredBy },
+                        { label: "Substitutions", value: parsedRequestPreview.allowSubstitutions ? "Allowed" : "Not allowed" },
+                    ].map(({ label, value }) => (
+                        <div key={label}>
+                            <p className="text-[11px] font-semibold tracking-[0.12em] uppercase text-amber-700">{label}</p>
+                            <p className="mt-0.5 text-sm font-medium text-amber-900">{value}</p>
+                        </div>
+                    ))}
                 </div>
             </div>
         </div>

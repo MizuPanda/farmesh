@@ -2,27 +2,32 @@ type StatusBadgeProps = {
     status: string;
 };
 
-const colorMap: Record<string, string> = {
-    OPEN: "bg-green-100 text-green-800",
-    MATCHED: "bg-blue-100 text-blue-800",
-    EXPIRED: "bg-gray-100 text-gray-600",
-    PROPOSED: "bg-amber-100 text-amber-800",
-    AWAITING_CONFIRMATION: "bg-amber-100 text-amber-700",
-    CONFIRMED: "bg-green-100 text-green-800",
-    REJECTED: "bg-red-50 text-red-600",
-    Pending: "bg-amber-100 text-amber-800",
-    "In Transit": "bg-blue-100 text-blue-800",
-    Delivered: "bg-green-100 text-green-800",
-    Cancelled: "bg-red-50 text-red-600",
+type StyleMap = Record<string, { border: string; bg: string; color: string }>;
+
+const styleMap: StyleMap = {
+    OPEN:                   { border: "#bbf7d0", bg: "#f0fdf4", color: "#166534" },
+    MATCHED:                { border: "#bfdbfe", bg: "#eff6ff", color: "#1d4ed8" },
+    EXPIRED:                { border: "hsl(30 15% 82%)", bg: "hsl(35 25% 93%)", color: "hsl(30 8% 45%)" },
+    PROPOSED:               { border: "#fde68a", bg: "#fffbeb", color: "#92400e" },
+    AWAITING_CONFIRMATION:  { border: "#fde68a", bg: "#fffbeb", color: "#92400e" },
+    CONFIRMED:              { border: "#bbf7d0", bg: "#f0fdf4", color: "#166534" },
+    REJECTED:               { border: "#fecaca", bg: "#fef2f2", color: "#dc2626" },
+    Pending:                { border: "#fde68a", bg: "#fffbeb", color: "#92400e" },
+    "In Transit":           { border: "#bfdbfe", bg: "#eff6ff", color: "#1d4ed8" },
+    Delivered:              { border: "#bbf7d0", bg: "#f0fdf4", color: "#166534" },
+    Cancelled:              { border: "#fecaca", bg: "#fef2f2", color: "#dc2626" },
 };
 
+const fallback = { border: "hsl(30 15% 82%)", bg: "hsl(35 25% 93%)", color: "hsl(30 8% 45%)" };
+
 export default function StatusBadge({ status }: StatusBadgeProps) {
-    const colors = colorMap[status] ?? "bg-gray-100 text-gray-600";
+    const s = styleMap[status] ?? fallback;
     const label = status.replace(/_/g, " ");
 
     return (
         <span
-            className={`inline-block rounded-full px-3 py-1 text-xs font-semibold ${colors}`}
+            className="inline-block border px-2.5 py-0.5 text-[10px] font-semibold tracking-[0.12em] uppercase"
+            style={{ borderColor: s.border, backgroundColor: s.bg, color: s.color }}
         >
             {label}
         </span>

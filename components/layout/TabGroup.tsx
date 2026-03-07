@@ -10,13 +10,10 @@ type TabGroupProps = {
     accentColor?: "green" | "amber" | "blue";
 };
 
-const accentStyles = {
-    green:
-        "border-green-600 text-green-700",
-    amber:
-        "border-amber-600 text-amber-700",
-    blue:
-        "border-blue-600 text-blue-700",
+const accentColors = {
+    green: "#16a34a",
+    amber: "#d97706",
+    blue: "#2563eb",
 };
 
 export default function TabGroup({
@@ -25,20 +22,29 @@ export default function TabGroup({
     onTabChange,
     accentColor = "green",
 }: TabGroupProps) {
+    const accent = accentColors[accentColor];
     return (
-        <div className="flex border-b border-gray-200">
-            {tabs.map((tab) => (
-                <button
-                    key={tab.value}
-                    onClick={() => onTabChange(tab.value)}
-                    className={`px-5 py-3 text-sm font-medium transition-colors ${activeTab === tab.value
-                            ? `border-b-2 ${accentStyles[accentColor]}`
-                            : "text-gray-500 hover:text-gray-700"
-                        }`}
-                >
-                    {tab.label}
-                </button>
-            ))}
+        <div
+            className="flex border-b"
+            style={{ borderColor: "hsl(30 15% 88%)" }}
+        >
+            {tabs.map((tab) => {
+                const isActive = activeTab === tab.value;
+                return (
+                    <button
+                        key={tab.value}
+                        onClick={() => onTabChange(tab.value)}
+                        className="px-5 py-3 text-xs font-semibold tracking-[0.12em] uppercase transition-all duration-300"
+                        style={{
+                            borderBottom: isActive ? `2px solid ${accent}` : "2px solid transparent",
+                            color: isActive ? accent : "hsl(30 8% 45%)",
+                            marginBottom: "-1px",
+                        }}
+                    >
+                        {tab.label}
+                    </button>
+                );
+            })}
         </div>
     );
 }

@@ -1,6 +1,6 @@
 import type { Match } from "@/types";
 import StatusBadge from "@/components/layout/StatusBadge";
-import { Sparkles, TrendingUp } from "lucide-react";
+import { Sparkles } from "lucide-react";
 
 type BuyerMatchCardProps = {
     match: Match;
@@ -15,48 +15,63 @@ export default function BuyerMatchCard({
 
     return (
         <div
-            className={`relative rounded-xl border p-5 shadow-sm transition-shadow hover:shadow-md ${recommended
-                    ? "border-amber-300 bg-amber-50/40 ring-1 ring-amber-200"
-                    : "border-gray-200 bg-white"
-                }`}
+            className="hover-lift border p-6 transition-all duration-400"
+            style={{
+                borderColor: recommended ? "#fde68a" : "hsl(30 15% 88%)",
+                backgroundColor: recommended ? "#fffbeb" : "hsl(40 30% 95%)",
+                borderLeftWidth: recommended ? "3px" : "1px",
+                borderLeftColor: recommended ? "#d97706" : "hsl(30 15% 88%)",
+            }}
         >
             {/* Recommended badge */}
             {recommended && (
-                <div className="mb-3 flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1 w-fit">
-                    <Sparkles className="h-3.5 w-3.5 text-amber-600" />
-                    <span className="text-xs font-semibold text-amber-700">
+                <div className="mb-5 flex w-fit items-center gap-1.5 border border-amber-200 bg-white px-3 py-1">
+                    <Sparkles className="h-3 w-3 text-amber-600" />
+                    <span className="text-[10px] font-semibold tracking-[0.15em] uppercase text-amber-700">
                         Recommended by Farmesh AI
                     </span>
                 </div>
             )}
 
-            <div className="mb-3 flex items-start justify-between">
-                <h3 className="text-base font-semibold text-gray-900">
+            {/* Header */}
+            <div className="mb-5 flex items-start justify-between gap-3">
+                <h3 className="font-serif text-lg" style={{ color: "var(--foreground)" }}>
                     {match.product}
                 </h3>
                 <StatusBadge status={match.status} />
             </div>
 
-            {/* Score */}
-            <div className="mb-3 flex items-center gap-2">
-                <TrendingUp className="h-4 w-4 text-amber-600" />
-                <span className="text-sm font-semibold text-amber-700">
-                    {match.score}% match score
-                </span>
+            {/* Score bar */}
+            <div className="mb-5">
+                <div className="mb-2 flex items-center justify-between">
+                    <span className="text-[11px] font-semibold tracking-[0.15em] uppercase" style={{ color: "hsl(30 8% 45%)" }}>
+                        Match score
+                    </span>
+                    <span className="font-serif text-xl text-amber-700">{match.score}%</span>
+                </div>
+                <div style={{ height: "2px", backgroundColor: "hsl(30 15% 82%)" }}>
+                    <div
+                        className="h-full bg-amber-600 transition-all duration-700"
+                        style={{ width: `${match.score}%` }}
+                    />
+                </div>
             </div>
 
             {/* Explanation */}
-            <p className="mb-4 text-sm leading-relaxed text-gray-600">
+            <p className="mb-5 text-sm leading-relaxed" style={{ color: "hsl(30 8% 40%)" }}>
                 {match.reason}
             </p>
 
-            {/* Vendor line items */}
-            <div className="mb-4 space-y-2">
-                <p className="text-xs font-medium text-gray-500">Vendor Details</p>
-                <div className="rounded-lg bg-gray-50 px-4 py-3 text-sm text-gray-700">
-                    <p>
-                        Listing #{match.listingId} — {match.product}
-                    </p>
+            {/* Vendor details */}
+            <div className="mb-5">
+                <p className="mb-2 text-[11px] font-semibold tracking-[0.15em] uppercase" style={{ color: "hsl(30 8% 45%)" }}>
+                    Vendor details
+                </p>
+                <div
+                    className="border px-4 py-3 text-sm"
+                    style={{ borderColor: "hsl(30 15% 88%)", backgroundColor: "hsl(40 33% 97%)", color: "hsl(30 8% 40%)" }}
+                >
+                    Listing #{match.listingId} — {match.product}
                 </div>
             </div>
 
@@ -64,15 +79,16 @@ export default function BuyerMatchCard({
             <div className="flex gap-2">
                 <button
                     type="button"
-                    className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-amber-700"
+                    className="bg-amber-600 px-5 py-2.5 text-xs font-semibold tracking-[0.12em] uppercase text-white transition-colors duration-300 hover:bg-amber-700"
                 >
                     {isSplit ? "Confirm Split Order" : "Confirm Order"}
                 </button>
                 <button
                     type="button"
-                    className="rounded-lg border border-red-200 px-4 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-50"
+                    className="border px-5 py-2.5 text-xs font-semibold tracking-[0.12em] uppercase transition-colors duration-300"
+                    style={{ borderColor: "hsl(30 15% 82%)", color: "hsl(30 8% 40%)" }}
                 >
-                    Reject
+                    Decline
                 </button>
             </div>
         </div>

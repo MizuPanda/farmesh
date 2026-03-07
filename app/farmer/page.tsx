@@ -1,13 +1,13 @@
 "use client";
 
-import { useState } from "react";
-import { Bell, Plus } from "lucide-react";
-import DashboardHeader from "@/components/layout/DashboardHeader";
+import React, { useState } from "react";
+import { Plus, Package, TrendingUp, Clock } from "lucide-react";
+import AppNav from "@/components/layout/AppNav";
 import TabGroup from "@/components/layout/TabGroup";
 import PostSupplyForm from "@/components/farmer/PostSupplyForm";
 import ListingsTable from "@/components/farmer/ListingsTable";
 import FarmerMatchCard from "@/components/farmer/FarmerMatchCard";
-import { farmerListings, farmerMatches } from "@/data/mockData";
+import { farmerListings, farmerMatches, farmerNotifications } from "@/data/mockData";
 
 const tabs = [
     { label: "Listings", value: "listings" },
@@ -18,53 +18,85 @@ export default function FarmerDashboard() {
     const [activeTab, setActiveTab] = useState("listings");
     const [showPostForm, setShowPostForm] = useState(false);
 
+    const activeCount = farmerListings.filter((l) => l.status === "OPEN").length;
+    const matchedCount = farmerListings.filter((l) => l.status === "MATCHED").length;
+    const pendingCount = farmerMatches.filter((m) => m.status === "PROPOSED").length;
+    const unreadCount = farmerNotifications.filter((n) => !n.read).length;
+
+    const statCard = (icon: React.ReactNode, label: string, value: number, sub: string) => (
+        <div
+            className="hover-lift border p-6"
+            style={{ borderColor: "hsl(30 15% 88%)", backgroundColor: "hsl(40 30% 95%)" }}
+        >
+            <div
+                className="mb-4 flex items-center gap-2 text-[11px] font-semibold tracking-[0.2em] uppercase"
+                style={{ color: "hsl(30 8% 45%)" }}
+            >
+                {icon}
+                {label}
+            </div>
+            <p className="font-serif text-4xl" style={{ color: "var(--foreground)" }}>{value}</p>
+            <p className="mt-1 text-xs" style={{ color: "hsl(30 8% 55%)" }}>{sub}</p>
+        </div>
+    );
+
     return (
-        <div className="min-h-screen bg-gray-50">
-            <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6">
-                {/* Header */}
-                <DashboardHeader title="Farmer Dashboard">
+        <div className="min-h-screen" style={{ backgroundColor: "var(--background)" }}>
+            <AppNav unreadCount={unreadCount} />
+
+            <div className="mx-auto max-w-6xl px-6 py-10 lg:px-12">
+                {/* Page header */}
+                <div className="mb-10 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between animate-fade-in">
+                    <div>
+                        <p className="mb-1 text-[11px] font-semibold tracking-[0.3em] uppercase text-green-600">
+                            Supply Management
+                        </p>
+                        <h1 className="font-serif text-3xl md:text-4xl" style={{ color: "var(--foreground)" }}>
+                            Farmer Dashboard
+                        </h1>
+                        <p className="mt-2 text-sm" style={{ color: "hsl(30 8% 45%)" }}>
+                            Manage your supply listings and review buyer matches
+                        </p>
+                    </div>
                     <button
                         type="button"
-                        className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3.5 py-2 text-sm font-medium text-gray-600 shadow-sm transition-colors hover:bg-gray-50"
+                        onClick={() => setShowPostForm((v) => !v)}
+                        className="flex w-fit items-center gap-2 bg-green-600 px-6 py-3 text-xs font-semibold tracking-[0.12em] uppercase text-white transition-all duration-300 hover:bg-green-700"
                     >
-                        <Bell className="h-4 w-4" />
-                        Notifications
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => setShowPostForm(!showPostForm)}
-                        className="flex items-center gap-1.5 rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-green-700"
-                    >
-                        <Plus className="h-4 w-4" />
+                        <Plus className="h-3.5 w-3.5" />
                         Post Supply
                     </button>
-                </DashboardHeader>
+                </div>
 
-                {/* Post Supply Form */}
+                {/* Stats row */}
+                <div className="mb-10 grid grid-cols-3 gap-4 stagger-children">
+                    {statCard(<Package className="h-3.5 w-3.5" />, "Active", activeCount, "open listings")}
+                    {statCard(<TrendingUp className="h-3.5 w-3.5" />, "Matched", matchedCount, "listings matched")}
+                    {statCard(<Clock className="h-3.5 w-3.5" />, "Pending", pendingCount, "match proposals")}
+                </div>
+
+                {/* Post Supply form (inline) */}
                 {showPostForm && (
-                    <div className="mt-6">
+                    <div className="mb-10 animate-fade-in-up">
                         <PostSupplyForm onClose={() => setShowPostForm(false)} />
                     </div>
                 )}
 
                 {/* Tabs */}
-                <div className="mt-6">
-                    <TabGroup
-                        tabs={tabs}
-                        activeTab={activeTab}
-                        onTabChange={setActiveTab}
-                        accentColor="green"
-                    />
-                </div>
+                <TabGroup
+                    tabs={tabs}
+                    activeTab={activeTab}
+                    onTabChange={setActiveTab}
+                    accentColor="green"
+                />
 
-                {/* Tab Content */}
                 <div className="mt-6">
                     {activeTab === "listings" && (
                         <ListingsTable listings={farmerListings} />
                     )}
 
                     {activeTab === "matches" && (
-                        <div className="grid gap-4 sm:grid-cols-2">
+                        <div className="grid gap-4 sm:grid-cols-2 stagger-children">
                             {farmerMatches.map((match) => (
                                 <FarmerMatchCard key={match.id} match={match} />
                             ))}
