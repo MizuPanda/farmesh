@@ -23,7 +23,7 @@ export async function signup({
 }: SignupParams): Promise<{ error: string } | never> {
     const supabase = await createClient();
 
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -38,6 +38,25 @@ export async function signup({
 
     if (error) {
         return { error: error.message };
+    }
+
+    const userId = data.user?.id;
+    if (!userId) {
+        return { error: "Signup succeeded but no user ID was returned." };
+    }
+
+    // Insert profile row into public.users
+    const { error: profileError } = await supabase.from("users").insert({
+        id: userId,
+        name,
+        email,
+        type,
+        business_name: businessName,
+        phone,
+    });
+
+    if (profileError) {
+        return { error: profileError.message };
     }
 
     redirect(type === "farmer" ? "/farmer" : "/buyer");

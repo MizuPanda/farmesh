@@ -7,6 +7,8 @@ You need to setup your .env.local file with the following variables:
 - NEXT_PUBLIC_SUPABASE_URL
 - NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
 
+Check the Keys document for more details.
+
 First, run the development server:
 
 ```bash
