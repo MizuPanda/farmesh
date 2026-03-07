@@ -1,4 +1,4 @@
-export type UserType = "Farmer" | "Buyer";
+export type UserType = "buyer" | "farmer";
 
 export type User = {
     id: string;
@@ -6,4 +6,5 @@ export type User = {
     email: string;
     type: UserType;
     businessName: string;
+    phone: string;
 };
