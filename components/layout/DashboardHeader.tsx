@@ -15,12 +15,13 @@ export default function DashboardHeader({
             <div className="flex items-center gap-3">
                 <Link
                     href="/"
-                    className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
+                    className="rounded-lg p-2 transition-colors hover:bg-[var(--surface-card)] hover:text-[var(--foreground)]"
+                    style={{ color: "var(--text-subtle)" }}
                     aria-label="Back to home"
                 >
                     <ArrowLeft className="h-5 w-5" />
                 </Link>
-                <h1 className="text-2xl font-bold text-gray-900">{title}</h1>
+                <h1 className="text-2xl font-bold" style={{ color: "var(--foreground)" }}>{title}</h1>
             </div>
             {children && <div className="flex items-center gap-2">{children}</div>}
         </header>

@@ -6,13 +6,13 @@ type PostSupplyFormProps = {
 };
 
 const inputCls = "w-full border px-3 py-2 text-sm font-sans outline-none transition-colors duration-200";
-const inputStyle = { borderColor: "hsl(30 15% 82%)", backgroundColor: "hsl(40 33% 97%)", color: "var(--foreground)" } as const;
+const inputStyle = { borderColor: "var(--border-default)", backgroundColor: "var(--surface-base)", color: "var(--foreground)" } as const;
 
 export default function PostSupplyForm({ onClose }: PostSupplyFormProps) {
     return (
         <div className="space-y-4">
             {/* Text Input Card */}
-            <div className="border p-6" style={{ borderColor: "hsl(30 15% 88%)", backgroundColor: "hsl(40 33% 97%)" }}>
+            <div className="border p-6" style={{ borderColor: "var(--border-soft)", backgroundColor: "var(--surface-base)" }}>
                 <p className="mb-1 text-[11px] font-semibold tracking-[0.25em] uppercase text-green-700">
                     New Listing
                 </p>
@@ -24,9 +24,9 @@ export default function PostSupplyForm({ onClose }: PostSupplyFormProps) {
                     rows={3}
                     placeholder="I have 60 lbs of baby greens available this week for bulk sale"
                     className="w-full resize-none border px-4 py-3 text-sm font-sans outline-none transition-colors duration-200"
-                    style={{ borderColor: "hsl(30 15% 82%)", backgroundColor: "hsl(40 30% 95%)", color: "var(--foreground)" }}
+                    style={{ borderColor: "var(--border-default)", backgroundColor: "var(--surface-card)", color: "var(--foreground)" }}
                     onFocus={(e) => (e.currentTarget.style.borderColor = "#16a34a")}
-                    onBlur={(e) => (e.currentTarget.style.borderColor = "hsl(30 15% 82%)")}
+                    onBlur={(e) => (e.currentTarget.style.borderColor = "var(--border-default)")}
                 />
 
                 {/* Structured fields */}
@@ -38,7 +38,7 @@ export default function PostSupplyForm({ onClose }: PostSupplyFormProps) {
                         { label: "Price / unit", type: "number", placeholder: "4.50" },
                     ].map(({ label, type, placeholder }) => (
                         <div key={label}>
-                            <label className="mb-1 block text-[11px] font-semibold tracking-[0.12em] uppercase" style={{ color: "hsl(30 8% 45%)" }}>
+                            <label className="mb-1 block text-[11px] font-semibold tracking-[0.12em] uppercase" style={{ color: "var(--text-muted)" }}>
                                 {label}
                             </label>
                             <input
@@ -47,12 +47,12 @@ export default function PostSupplyForm({ onClose }: PostSupplyFormProps) {
                                 className={inputCls}
                                 style={inputStyle}
                                 onFocus={(e) => (e.currentTarget.style.borderColor = "#16a34a")}
-                                onBlur={(e) => (e.currentTarget.style.borderColor = "hsl(30 15% 82%)")}
+                                onBlur={(e) => (e.currentTarget.style.borderColor = "var(--border-default)")}
                             />
                         </div>
                     ))}
                     <div>
-                        <label className="mb-1 block text-[11px] font-semibold tracking-[0.12em] uppercase" style={{ color: "hsl(30 8% 45%)" }}>
+                        <label className="mb-1 block text-[11px] font-semibold tracking-[0.12em] uppercase" style={{ color: "var(--text-muted)" }}>
                             Expiry Date
                         </label>
                         <input
@@ -60,7 +60,7 @@ export default function PostSupplyForm({ onClose }: PostSupplyFormProps) {
                             className={inputCls}
                             style={inputStyle}
                             onFocus={(e) => (e.currentTarget.style.borderColor = "#16a34a")}
-                            onBlur={(e) => (e.currentTarget.style.borderColor = "hsl(30 15% 82%)")}
+                            onBlur={(e) => (e.currentTarget.style.borderColor = "var(--border-default)")}
                         />
                     </div>
                 </div>
@@ -76,7 +76,7 @@ export default function PostSupplyForm({ onClose }: PostSupplyFormProps) {
                         type="button"
                         onClick={onClose}
                         className="border px-6 py-2.5 text-xs font-semibold tracking-[0.12em] uppercase transition-colors duration-300"
-                        style={{ borderColor: "hsl(30 15% 82%)", color: "hsl(30 8% 40%)" }}
+                        style={{ borderColor: "var(--border-default)", color: "var(--text-muted)" }}
                     >
                         Cancel
                     </button>
@@ -84,7 +84,7 @@ export default function PostSupplyForm({ onClose }: PostSupplyFormProps) {
             </div>
 
             {/* AI Parsed Preview */}
-            <div className="border-l-2 border-green-600 p-5" style={{ backgroundColor: "hsl(40 33% 97%)", borderTopColor: "transparent", borderRightColor: "hsl(30 15% 88%)", borderBottomColor: "hsl(30 15% 88%)" }}>
+            <div className="border-l-2 border-green-600 p-5" style={{ backgroundColor: "var(--surface-base)", borderTopColor: "transparent", borderRightColor: "var(--border-soft)", borderBottomColor: "var(--border-soft)" }}>
                 <div className="mb-4 flex items-center gap-2">
                     <Sparkles className="h-3.5 w-3.5 text-green-600" />
                     <p className="text-[11px] font-semibold tracking-[0.2em] uppercase text-green-700">

@@ -33,17 +33,17 @@ export default function BuyerDashboard() {
     const statCard = (icon: React.ReactNode, label: string, value: number, sub: string) => (
         <div
             className="hover-lift border p-6"
-            style={{ borderColor: "hsl(30 15% 88%)", backgroundColor: "hsl(40 30% 95%)" }}
+            style={{ borderColor: "var(--border-soft)", backgroundColor: "var(--surface-card)" }}
         >
             <div
                 className="mb-4 flex items-center gap-2 text-[11px] font-semibold tracking-[0.2em] uppercase"
-                style={{ color: "hsl(30 8% 45%)" }}
+                style={{ color: "var(--text-muted)" }}
             >
                 {icon}
                 {label}
             </div>
             <p className="font-serif text-4xl" style={{ color: "var(--foreground)" }}>{value}</p>
-            <p className="mt-1 text-xs" style={{ color: "hsl(30 8% 55%)" }}>{sub}</p>
+            <p className="mt-1 text-xs" style={{ color: "var(--text-subtle)" }}>{sub}</p>
         </div>
     );
 
@@ -61,7 +61,7 @@ export default function BuyerDashboard() {
                         <h1 className="font-serif text-3xl md:text-4xl" style={{ color: "var(--foreground)" }}>
                             Buyer Dashboard
                         </h1>
-                        <p className="mt-2 text-sm" style={{ color: "hsl(30 8% 45%)" }}>
+                        <p className="mt-2 text-sm" style={{ color: "var(--text-muted)" }}>
                             Post requests, review AI matches, and track your orders
                         </p>
                     </div>
