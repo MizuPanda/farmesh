@@ -39,9 +39,9 @@ yarn-error.log*
 # vercel
 .vercel
 
-# runtime data (never commit — use Supabase in production)
-data/store.json
-data/store.backup.json
+# runtime data (legacy local store)
+backend/data/store.json
+backend/data/store.backup.json
 
 # typescript
 *.tsbuildinfo

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Sparkles, Loader2 } from 'lucide-react';
 
 type PostSupplyFormProps = {
+  vendorId: string;
   onClose: () => void;
   onSubmitted?: () => void;
 };
@@ -15,7 +16,7 @@ const inputStyle = {
   color: 'var(--foreground)',
 } as const;
 
-export default function PostSupplyForm({ onClose, onSubmitted }: PostSupplyFormProps) {
+export default function PostSupplyForm({ vendorId, onClose, onSubmitted }: PostSupplyFormProps) {
   const [rawInput, setRawInput] = useState('');
   const [product, setProduct] = useState('');
   const [quantity, setQuantity] = useState('');
@@ -40,6 +41,7 @@ export default function PostSupplyForm({ onClose, onSubmitted }: PostSupplyFormP
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          vendorId,
           rawInput,
           product,
           quantity,
@@ -50,13 +52,17 @@ export default function PostSupplyForm({ onClose, onSubmitted }: PostSupplyFormP
       });
 
       if (!listingRes.ok) {
-        throw new Error('Failed to save listing');
+        const listingErr = await listingRes.json().catch(() => null);
+        throw new Error(listingErr?.error ?? 'Failed to save listing');
       }
 
       setStatus('matching');
 
       const matchRes = await fetch('/api/match', { method: 'POST' });
-      const matchData = await matchRes.json();
+      const matchData = await matchRes.json().catch(() => null);
+      if (!matchRes.ok) {
+        throw new Error(matchData?.error ?? 'Failed to run matching');
+      }
 
       setMatchCount(matchData.matchesFound ?? 0);
       setStatus('done');

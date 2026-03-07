@@ -9,9 +9,8 @@ import RequestsTable from "@/components/buyer/RequestsTable";
 import BuyerMatchCard from "@/components/buyer/BuyerMatchCard";
 import OrderCard from "@/components/buyer/OrderCard";
 import { buyerOrders, buyerNotifications } from "@/data/mockData";
+import { getUser } from "@/lib/auth";
 import type { Match, Request } from "@/types";
-
-const BUYER_ID = "b1"; // TODO: replace with auth session user
 
 const tabs = [
   { label: "Requests", value: "requests" },
@@ -22,14 +21,36 @@ const tabs = [
 export default function BuyerDashboard() {
   const [activeTab, setActiveTab] = useState("requests");
   const [showPostForm, setShowPostForm] = useState(false);
+  const [buyerId, setBuyerId] = useState<string | null>(null);
   const [requests, setRequests] = useState<Request[]>([]);
   const [matches, setMatches] = useState<Match[]>([]);
+  const [isRunningMatch, setIsRunningMatch] = useState(false);
+  const [matchRunMessage, setMatchRunMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+
+    getUser().then((user) => {
+      if (!mounted) return;
+      setBuyerId(user?.type === "buyer" ? user.id : null);
+    });
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const fetchData = useCallback(async () => {
+    if (!buyerId) {
+      setRequests([]);
+      setMatches([]);
+      return;
+    }
+
     try {
       const [requestsRes, matchesRes] = await Promise.all([
-        fetch(`/api/requests?buyerId=${BUYER_ID}`),
-        fetch(`/api/matches?buyerId=${BUYER_ID}`),
+        fetch(`/api/requests?buyerId=${buyerId}`),
+        fetch(`/api/matches?buyerId=${buyerId}`),
       ]);
 
       const nextRequests: Request[] = requestsRes.ok ? await requestsRes.json() : [];
@@ -42,11 +63,39 @@ export default function BuyerDashboard() {
       setRequests([]);
       setMatches([]);
     }
-  }, []);
+  }, [buyerId]);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     void fetchData();
+  }, [fetchData]);
+
+  const runMatching = useCallback(async () => {
+    setIsRunningMatch(true);
+    setMatchRunMessage(null);
+
+    try {
+      const response = await fetch("/api/match", { method: "POST" });
+      const payload = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        setMatchRunMessage(payload?.error ?? "Failed to run matching.");
+        return;
+      }
+
+      const matchesFound = Number(payload?.matchesFound ?? 0);
+      if (matchesFound > 0) {
+        setMatchRunMessage(`Matching run complete: ${matchesFound} match${matchesFound === 1 ? "" : "es"} found.`);
+      } else {
+        setMatchRunMessage(payload?.message ?? "No new matches found for current OPEN listings/requests.");
+      }
+
+      await fetchData();
+    } catch (error) {
+      console.error("Failed to run matching", error);
+      setMatchRunMessage("Failed to run matching.");
+    } finally {
+      setIsRunningMatch(false);
+    }
   }, [fetchData]);
 
   const openCount = requests.filter((request) => request.status === "OPEN").length;
@@ -88,15 +137,33 @@ export default function BuyerDashboard() {
               Post sourcing needs, review local Canadian farm matches, and track your orders
             </p>
           </div>
-          <button
-            type="button"
-            onClick={() => setShowPostForm((value) => !value)}
-            className="flex w-fit items-center gap-2 bg-amber-600 px-6 py-3 text-xs font-semibold tracking-[0.12em] uppercase text-white transition-all duration-300 hover:bg-amber-700"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            Post Request
-          </button>
+          <div className="flex w-fit items-center gap-2">
+            <button
+              type="button"
+              onClick={() => void runMatching()}
+              disabled={!buyerId || isRunningMatch}
+              className="flex items-center gap-2 border border-amber-600 px-5 py-3 text-xs font-semibold tracking-[0.12em] uppercase text-amber-700 transition-all duration-300 hover:bg-amber-50 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              {isRunningMatch ? "Running..." : "Run Matching"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowPostForm((value) => !value)}
+              disabled={!buyerId}
+              className="flex items-center gap-2 bg-amber-600 px-6 py-3 text-xs font-semibold tracking-[0.12em] uppercase text-white transition-all duration-300 hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Post Request
+            </button>
+          </div>
         </div>
+
+        {matchRunMessage && (
+          <p className="mb-8 text-xs font-medium" style={{ color: "var(--text-muted)" }}>
+            {matchRunMessage}
+          </p>
+        )}
 
         <div className="mb-10 grid grid-cols-3 gap-4 stagger-children">
           {statCard(<ShoppingCart className="h-3.5 w-3.5" />, "Requests", openCount, "open requests")}
@@ -104,9 +171,10 @@ export default function BuyerDashboard() {
           {statCard(<Truck className="h-3.5 w-3.5" />, "In Transit", inTransitCount, "active orders")}
         </div>
 
-        {showPostForm && (
+        {showPostForm && buyerId && (
           <div className="mb-10 animate-fade-in-up">
             <PostRequestForm
+              buyerId={buyerId}
               onClose={() => setShowPostForm(false)}
               onSubmitted={() => {
                 setShowPostForm(false);

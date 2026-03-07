@@ -3,8 +3,7 @@ import { insertMatch, updateListingStatus, updateRequestStatus } from '@/lib/db'
 
 /**
  * Coordination Agent — receives a proposed match from the Backboard Matching Agent.
- * Currently persists to data/store.json.
- * TO SWAP TO SUPABASE: update lib/db.ts — this file stays the same.
+ * Persistence is handled in lib/db.ts (currently Supabase-backed).
  */
 export async function handleProposedMatch(args: {
   vendorId: string;
@@ -17,14 +16,14 @@ export async function handleProposedMatch(args: {
   reason: string;
 }): Promise<Match> {
   const match: Match = {
-    id: `m_${Date.now()}`,
+    id: crypto.randomUUID(),
     listingId: args.listingId,
     requestId: args.requestId,
     score: args.score,
     product: args.product,
     reason: args.reason,
     status: 'PROPOSED',
-    createdAt: new Date().toISOString().split('T')[0],
+    createdAt: new Date().toISOString(),
   };
 
   await insertMatch(match);

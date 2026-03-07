@@ -1,16 +1,15 @@
 'use client';
 
 import { useState, useEffect, useCallback, type ReactNode } from "react";
-import { Plus, Package, TrendingUp, Clock } from "lucide-react";
+import { Plus, Package, TrendingUp, Clock, Sparkles } from "lucide-react";
 import AppNav from "@/components/layout/AppNav";
 import TabGroup from "@/components/layout/TabGroup";
 import PostSupplyForm from "@/components/farmer/PostSupplyForm";
 import ListingsTable from "@/components/farmer/ListingsTable";
 import FarmerMatchCard from "@/components/farmer/FarmerMatchCard";
 import { farmerNotifications } from "@/data/mockData";
+import { getUser } from "@/lib/auth";
 import type { Listing, Match } from "@/types";
-
-const VENDOR_ID = "f1"; // TODO: replace with auth session user
 
 const tabs = [
   { label: "Listings", value: "listings" },
@@ -20,14 +19,36 @@ const tabs = [
 export default function FarmerDashboard() {
   const [activeTab, setActiveTab] = useState("listings");
   const [showPostForm, setShowPostForm] = useState(false);
+  const [vendorId, setVendorId] = useState<string | null>(null);
   const [listings, setListings] = useState<Listing[]>([]);
   const [matches, setMatches] = useState<Match[]>([]);
+  const [isRunningMatch, setIsRunningMatch] = useState(false);
+  const [matchRunMessage, setMatchRunMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+
+    getUser().then((user) => {
+      if (!mounted) return;
+      setVendorId(user?.type === "farmer" ? user.id : null);
+    });
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const fetchData = useCallback(async () => {
+    if (!vendorId) {
+      setListings([]);
+      setMatches([]);
+      return;
+    }
+
     try {
       const [listingsRes, matchesRes] = await Promise.all([
-        fetch(`/api/listings?vendorId=${VENDOR_ID}`),
-        fetch(`/api/matches?vendorId=${VENDOR_ID}`),
+        fetch(`/api/listings?vendorId=${vendorId}`),
+        fetch(`/api/matches?vendorId=${vendorId}`),
       ]);
 
       const nextListings: Listing[] = listingsRes.ok ? await listingsRes.json() : [];
@@ -40,11 +61,39 @@ export default function FarmerDashboard() {
       setListings([]);
       setMatches([]);
     }
-  }, []);
+  }, [vendorId]);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     void fetchData();
+  }, [fetchData]);
+
+  const runMatching = useCallback(async () => {
+    setIsRunningMatch(true);
+    setMatchRunMessage(null);
+
+    try {
+      const response = await fetch("/api/match", { method: "POST" });
+      const payload = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        setMatchRunMessage(payload?.error ?? "Failed to run matching.");
+        return;
+      }
+
+      const matchesFound = Number(payload?.matchesFound ?? 0);
+      if (matchesFound > 0) {
+        setMatchRunMessage(`Matching run complete: ${matchesFound} match${matchesFound === 1 ? "" : "es"} found.`);
+      } else {
+        setMatchRunMessage(payload?.message ?? "No new matches found for current OPEN listings/requests.");
+      }
+
+      await fetchData();
+    } catch (error) {
+      console.error("Failed to run matching", error);
+      setMatchRunMessage("Failed to run matching.");
+    } finally {
+      setIsRunningMatch(false);
+    }
   }, [fetchData]);
 
   const activeCount = listings.filter((listing) => listing.status === "OPEN").length;
@@ -86,15 +135,33 @@ export default function FarmerDashboard() {
               Manage your harvest listings and review matches from Canadian restaurants and grocers
             </p>
           </div>
-          <button
-            type="button"
-            onClick={() => setShowPostForm((value) => !value)}
-            className="flex w-fit items-center gap-2 bg-green-600 px-6 py-3 text-xs font-semibold tracking-[0.12em] uppercase text-white transition-all duration-300 hover:bg-green-700"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            Post Supply
-          </button>
+          <div className="flex w-fit items-center gap-2">
+            <button
+              type="button"
+              onClick={() => void runMatching()}
+              disabled={!vendorId || isRunningMatch}
+              className="flex items-center gap-2 border border-green-600 px-5 py-3 text-xs font-semibold tracking-[0.12em] uppercase text-green-700 transition-all duration-300 hover:bg-green-50 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              {isRunningMatch ? "Running..." : "Run Matching"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowPostForm((value) => !value)}
+              disabled={!vendorId}
+              className="flex items-center gap-2 bg-green-600 px-6 py-3 text-xs font-semibold tracking-[0.12em] uppercase text-white transition-all duration-300 hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Post Supply
+            </button>
+          </div>
         </div>
+
+        {matchRunMessage && (
+          <p className="mb-8 text-xs font-medium" style={{ color: "var(--text-muted)" }}>
+            {matchRunMessage}
+          </p>
+        )}
 
         <div className="mb-10 grid grid-cols-3 gap-4 stagger-children">
           {statCard(<Package className="h-3.5 w-3.5" />, "Active", activeCount, "open listings")}
@@ -102,9 +169,10 @@ export default function FarmerDashboard() {
           {statCard(<Clock className="h-3.5 w-3.5" />, "Pending", pendingCount, "match proposals")}
         </div>
 
-        {showPostForm && (
+        {showPostForm && vendorId && (
           <div className="mb-10 animate-fade-in-up">
             <PostSupplyForm
+              vendorId={vendorId}
               onClose={() => setShowPostForm(false)}
               onSubmitted={() => {
                 setShowPostForm(false);

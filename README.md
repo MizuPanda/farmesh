@@ -74,19 +74,23 @@ All AI orchestration is handled by **Backboard.io** agents:
 
 ```
 farmesh/
-├── app/                    # Next.js App Router — pages and API routes
-│   ├── (farmer)/           # Farmer dashboard pages
-│   ├── (buyer)/            # Buyer dashboard pages
-│   ├── (admin)/            # Admin/demo dashboard pages
-│   └── api/                # API route handlers
-├── components/             # Shared UI components
-├── data/                   # Seed data (Canadian vendors, buyers, listings, requests)
-├── lib/                    # Utilities, Prisma client, Backboard.io client, matching logic
-├── types/                  # TypeScript type definitions
-├── middleware.ts            # Role-based route protection (Supabase SSR)
-├── next.config.ts
-├── postcss.config.mjs
-└── package.json
+├── frontend/               # Next.js app (UI + API routes)
+│   ├── app/
+│   ├── components/
+│   ├── data/
+│   ├── lib/
+│   ├── public/
+│   ├── sql/
+│   ├── types/
+│   ├── middleware.ts
+│   ├── next.config.ts
+│   └── tsconfig.json
+├── backend/                # Reserved backend service area
+│   ├── src/
+│   ├── data/               # Legacy local runtime store snapshots
+│   └── README.md
+├── package.json            # Root scripts target frontend/
+└── package-lock.json
 ```
 
 ---
@@ -188,7 +192,7 @@ npm install
 
 ### 3. Set up environment variables
 
-Create a `.env.local` file in the project root:
+Create `frontend/.env.local`:
 
 ```env
 # Supabase

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Sparkles, Loader2 } from 'lucide-react';
 
 type PostRequestFormProps = {
+  buyerId: string;
   onClose: () => void;
   onSubmitted?: () => void;
 };
@@ -15,11 +16,12 @@ const inputStyle = {
   color: 'var(--foreground)',
 } as const;
 
-export default function PostRequestForm({ onClose, onSubmitted }: PostRequestFormProps) {
+export default function PostRequestForm({ buyerId, onClose, onSubmitted }: PostRequestFormProps) {
   const [rawInput, setRawInput] = useState('');
   const [product, setProduct] = useState('');
   const [quantity, setQuantity] = useState('');
   const [unit, setUnit] = useState('lb');
+  const [pricePerUnit, setPricePerUnit] = useState('');
   const [requiredBy, setRequiredBy] = useState('');
   const [allowSubstitutions, setAllowSubstitutions] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -27,8 +29,8 @@ export default function PostRequestForm({ onClose, onSubmitted }: PostRequestFor
   const [matchCount, setMatchCount] = useState(0);
 
   const handleSubmit = async () => {
-    if (!product || !quantity) {
-      alert('Please fill in at least Product and Quantity.');
+    if (!product || !quantity || !pricePerUnit) {
+      alert('Please fill in Product, Quantity, and Max price per unit.');
       return;
     }
 
@@ -40,23 +42,29 @@ export default function PostRequestForm({ onClose, onSubmitted }: PostRequestFor
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          buyerId,
           rawInput,
           product,
           quantity,
           unit,
+          pricePerUnit,
           requiredBy,
           allowSubstitutions,
         }),
       });
 
       if (!requestRes.ok) {
-        throw new Error('Failed to save request');
+        const requestErr = await requestRes.json().catch(() => null);
+        throw new Error(requestErr?.error ?? 'Failed to save request');
       }
 
       setStatus('matching');
 
       const matchRes = await fetch('/api/match', { method: 'POST' });
-      const matchData = await matchRes.json();
+      const matchData = await matchRes.json().catch(() => null);
+      if (!matchRes.ok) {
+        throw new Error(matchData?.error ?? 'Failed to run matching');
+      }
 
       setMatchCount(matchData.matchesFound ?? 0);
       setStatus('done');
@@ -91,12 +99,13 @@ export default function PostRequestForm({ onClose, onSubmitted }: PostRequestFor
         />
 
         <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
-          {[
-            { label: 'Product', type: 'text', placeholder: 'e.g. Salad Greens', value: product, onChange: setProduct },
-            { label: 'Quantity needed', type: 'number', placeholder: '100', value: quantity, onChange: setQuantity },
-            { label: 'Unit', type: 'text', placeholder: 'lb', value: unit, onChange: setUnit },
-            { label: 'Required by', type: 'text', placeholder: 'e.g. Friday', value: requiredBy, onChange: setRequiredBy },
-          ].map(({ label, type, placeholder, value, onChange }) => (
+            {[
+              { label: 'Product', type: 'text', placeholder: 'e.g. Salad Greens', value: product, onChange: setProduct },
+              { label: 'Quantity needed', type: 'number', placeholder: '100', value: quantity, onChange: setQuantity },
+              { label: 'Unit', type: 'text', placeholder: 'lb', value: unit, onChange: setUnit },
+              { label: 'Max price / unit', type: 'number', placeholder: '5.20', value: pricePerUnit, onChange: setPricePerUnit },
+              { label: 'Required by', type: 'text', placeholder: 'e.g. Friday', value: requiredBy, onChange: setRequiredBy },
+            ].map(({ label, type, placeholder, value, onChange }) => (
             <div key={label}>
               <label className="mb-1 block text-[11px] font-semibold tracking-[0.12em] uppercase" style={{ color: 'var(--text-muted)' }}>
                 {label}
@@ -165,12 +174,13 @@ export default function PostRequestForm({ onClose, onSubmitted }: PostRequestFor
           </p>
         </div>
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-          {[
-            { label: 'Product', value: product || '—' },
-            { label: 'Quantity', value: quantity ? `${quantity} ${unit}` : '—' },
-            { label: 'Required by', value: requiredBy || '—' },
-            { label: 'Substitutions', value: allowSubstitutions ? 'Allowed' : 'Not allowed' },
-          ].map(({ label, value }) => (
+            {[
+              { label: 'Product', value: product || '—' },
+              { label: 'Quantity', value: quantity ? `${quantity} ${unit}` : '—' },
+              { label: 'Max price', value: pricePerUnit ? `$${Number(pricePerUnit).toFixed(2)} / ${unit}` : '—' },
+              { label: 'Required by', value: requiredBy || '—' },
+              { label: 'Substitutions', value: allowSubstitutions ? 'Allowed' : 'Not allowed' },
+            ].map(({ label, value }) => (
             <div key={label}>
               <p className="text-[11px] font-semibold tracking-[0.12em] uppercase text-amber-700">{label}</p>
               <p className="mt-0.5 text-sm font-medium text-amber-900">{value}</p>

@@ -14,17 +14,23 @@ export async function GET(req: NextRequest) {
 // POST /api/listings
 export async function POST(req: NextRequest) {
   const body = await req.json();
+  if (typeof body.vendorId !== 'string' || body.vendorId.length === 0) {
+    return NextResponse.json({ error: 'vendorId is required' }, { status: 400 });
+  }
+
   const listing: Listing = {
-    id: `l_${Date.now()}`,
-    vendorId: body.vendorId ?? 'f1', // in production, pull from auth session
+    id: crypto.randomUUID(),
+    vendorId: body.vendorId,
     rawInput: body.rawInput ?? '',
     product: body.product,
     quantity: Number(body.quantity),
     unit: body.unit ?? 'lb',
     pricePerUnit: Number(body.pricePerUnit),
     status: 'OPEN',
-    createdAt: new Date().toISOString().split('T')[0],
-    expirationDate: body.expirationDate ?? '',
+    createdAt: new Date().toISOString(),
+    expirationDate: body.expirationDate
+      ? new Date(body.expirationDate).toISOString()
+      : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
   };
   const created = await insertListing(listing);
   return NextResponse.json(created, { status: 201 });
