@@ -3,10 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "eslint"
+    "dev": "next dev frontend",
+    "build": "next build frontend",
+    "start": "next start frontend",
+    "lint": "eslint --config frontend/eslint.config.mjs frontend"
   },
   "dependencies": {
     "@supabase/ssr": "^0.9.0",
