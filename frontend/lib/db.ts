@@ -108,18 +108,26 @@ type ListingMatchDetailsRow = {
   id: string;
   vendor_id: string;
   original_product: string;
+  normalized_product: string | null;
   original_quantity: number | string;
   original_unit: string;
   original_price_per_unit: number | string;
+  canonical_quantity: number | string | null;
+  canonical_unit: string | null;
+  canonical_price_per_canonical_unit: number | string | null;
 };
 
 type RequestMatchDetailsRow = {
   id: string;
   buyer_id: string;
   original_product: string;
+  normalized_product: string | null;
   original_quantity: number | string;
   original_unit: string;
   original_price_per_unit: number | string;
+  canonical_quantity: number | string | null;
+  canonical_unit: string | null;
+  canonical_price_per_canonical_unit: number | string | null;
 };
 
 type UserProfileRow = {
@@ -135,21 +143,36 @@ function mapListingRow(row: ListingRow): Listing {
     id: row.id,
     vendorId: row.vendor_id,
     rawInput: row.raw_input ?? "",
-    product: row.original_product,
-    quantity: toNumber(row.original_quantity),
-    unit: row.original_unit,
-    pricePerUnit: toNumber(row.original_price_per_unit),
+    product: row.normalized_product ?? row.original_product,
+    quantity: toNumber(row.canonical_quantity ?? row.original_quantity),
+    unit: row.canonical_unit ?? row.original_unit,
+    pricePerUnit: toNumber(row.canonical_price_per_canonical_unit ?? row.original_price_per_unit),
     status: row.status as ListingStatus,
     createdAt: row.created_at,
     expirationDate: row.expiration_date,
-    normalizedProduct: row.normalized_product,
-    productCategory: row.product_category,
-    canonicalQuantity: toNullableNumber(row.canonical_quantity),
-    canonicalUnit: (row.canonical_unit as Listing["canonicalUnit"]) ?? null,
-    canonicalPricePerCanonicalUnit: toNullableNumber(
-      row.canonical_price_per_canonical_unit
+  };
+}
+
+export function mapNormalizedListingRow(row: ListingRow): NormalizedListing {
+  return {
+    id: row.id,
+    vendorId: row.vendor_id,
+    rawInput: row.raw_input ?? "",
+    originalProduct: row.original_product,
+    normalizedProduct: row.normalized_product ?? row.original_product,
+    productCategory: row.product_category ?? DEFAULT_PRODUCT_CATEGORY,
+    originalQuantity: toNumber(row.original_quantity),
+    originalUnit: row.original_unit,
+    originalPricePerUnit: toNumber(row.original_price_per_unit),
+    canonicalQuantity: toNumber(row.canonical_quantity ?? row.original_quantity),
+    canonicalUnit: row.canonical_unit ?? row.original_unit,
+    canonicalPricePerCanonicalUnit: toNumber(
+      row.canonical_price_per_canonical_unit ?? row.original_price_per_unit
     ),
     assumptions: toStringArray(row.assumptions),
+    status: row.status,
+    createdAt: row.created_at,
+    expirationDate: row.expiration_date,
   };
 }
 
@@ -158,21 +181,36 @@ function mapRequestRow(row: RequestRow): Request {
     id: row.id,
     buyerId: row.buyer_id,
     rawInput: row.raw_input ?? "",
-    product: row.original_product,
-    quantity: toNumber(row.original_quantity),
-    unit: row.original_unit,
-    pricePerUnit: toNumber(row.original_price_per_unit),
+    product: row.normalized_product ?? row.original_product,
+    quantity: toNumber(row.canonical_quantity ?? row.original_quantity),
+    unit: row.canonical_unit ?? row.original_unit,
+    pricePerUnit: toNumber(row.canonical_price_per_canonical_unit ?? row.original_price_per_unit),
     status: row.status as RequestStatus,
     createdAt: row.created_at,
     neededDate: row.needed_date ?? undefined,
-    normalizedProduct: row.normalized_product,
-    productCategory: row.product_category,
-    canonicalQuantity: toNullableNumber(row.canonical_quantity),
-    canonicalUnit: (row.canonical_unit as Request["canonicalUnit"]) ?? null,
-    canonicalPricePerCanonicalUnit: toNullableNumber(
-      row.canonical_price_per_canonical_unit
+  };
+}
+
+export function mapNormalizedRequestRow(row: RequestRow): NormalizedRequest {
+  return {
+    id: row.id,
+    buyerId: row.buyer_id,
+    rawInput: row.raw_input ?? "",
+    originalProduct: row.original_product,
+    normalizedProduct: row.normalized_product ?? row.original_product,
+    productCategory: row.product_category ?? DEFAULT_PRODUCT_CATEGORY,
+    originalQuantity: toNumber(row.original_quantity),
+    originalUnit: row.original_unit,
+    originalPricePerUnit: toNumber(row.original_price_per_unit),
+    canonicalQuantity: toNumber(row.canonical_quantity ?? row.original_quantity),
+    canonicalUnit: row.canonical_unit ?? row.original_unit,
+    canonicalPricePerCanonicalUnit: toNumber(
+      row.canonical_price_per_canonical_unit ?? row.original_price_per_unit
     ),
     assumptions: toStringArray(row.assumptions),
+    status: row.status,
+    createdAt: row.created_at,
+    neededDate: row.needed_date ?? row.created_at,
   };
 }
 
@@ -200,13 +238,13 @@ async function enrichMatches(matches: Match[]): Promise<Match[]> {
     supabase
       .from("listings")
       .select(
-        "id, vendor_id, original_product, original_quantity, original_unit, original_price_per_unit"
+        "id, vendor_id, original_product, normalized_product, original_quantity, original_unit, original_price_per_unit, canonical_quantity, canonical_unit, canonical_price_per_canonical_unit"
       )
       .in("id", listingIds),
     supabase
       .from("requests")
       .select(
-        "id, buyer_id, original_product, original_quantity, original_unit, original_price_per_unit"
+        "id, buyer_id, original_product, normalized_product, original_quantity, original_unit, original_price_per_unit, canonical_quantity, canonical_unit, canonical_price_per_canonical_unit"
       )
       .in("id", requestIds),
   ]);
@@ -253,50 +291,65 @@ async function enrichMatches(matches: Match[]): Promise<Match[]> {
       ...match,
       listing: listing
         ? {
-            id: listing.id,
-            vendorId: listing.vendor_id,
-            product: listing.original_product,
-            quantity: toNumber(listing.original_quantity),
-            unit: listing.original_unit,
-            pricePerUnit: toNumber(listing.original_price_per_unit),
-          }
+          id: listing.id,
+          vendorId: listing.vendor_id,
+          product: listing.normalized_product ?? listing.original_product,
+          quantity: toNumber(listing.canonical_quantity ?? listing.original_quantity),
+          unit: listing.canonical_unit ?? listing.original_unit,
+          pricePerUnit: toNumber(listing.canonical_price_per_canonical_unit ?? listing.original_price_per_unit),
+        }
         : null,
       request: request
         ? {
-            id: request.id,
-            buyerId: request.buyer_id,
-            product: request.original_product,
-            quantity: toNumber(request.original_quantity),
-            unit: request.original_unit,
-            pricePerUnit: toNumber(request.original_price_per_unit),
-          }
+          id: request.id,
+          buyerId: request.buyer_id,
+          product: request.normalized_product ?? request.original_product,
+          quantity: toNumber(request.canonical_quantity ?? request.original_quantity),
+          unit: request.canonical_unit ?? request.original_unit,
+          pricePerUnit: toNumber(request.canonical_price_per_canonical_unit ?? request.original_price_per_unit),
+        }
         : null,
       vendor: listing
         ? {
-            id: listing.vendor_id,
-            name: vendorProfile?.name ?? null,
-            email: vendorProfile?.email ?? null,
-            businessName: vendorProfile?.business_name ?? null,
-            phone: vendorProfile?.phone ?? null,
-          }
+          id: listing.vendor_id,
+          name: vendorProfile?.name ?? null,
+          email: vendorProfile?.email ?? null,
+          businessName: vendorProfile?.business_name ?? null,
+          phone: vendorProfile?.phone ?? null,
+        }
         : null,
       buyer: request
         ? {
-            id: request.buyer_id,
-            name: buyerProfile?.name ?? null,
-            email: buyerProfile?.email ?? null,
-            businessName: buyerProfile?.business_name ?? null,
-            phone: buyerProfile?.phone ?? null,
-          }
+          id: request.buyer_id,
+          name: buyerProfile?.name ?? null,
+          email: buyerProfile?.email ?? null,
+          businessName: buyerProfile?.business_name ?? null,
+          phone: buyerProfile?.phone ?? null,
+        }
         : null,
     };
   });
 }
 
 function buildListingInsertPayload(listing: Listing | NormalizedListing) {
-  const normalizedProduct = listing.normalizedProduct ?? listing.product;
-  const productCategory = listing.productCategory ?? DEFAULT_PRODUCT_CATEGORY;
-  const assumptions = listing.assumptions ?? [];
+  if ("normalizedProduct" in listing) {
+    return {
+      vendor_id: listing.vendorId,
+      raw_input: listing.rawInput ?? "",
+      status: listing.status,
+      expiration_date: listing.expirationDate,
+      original_product: listing.originalProduct,
+      original_quantity: listing.originalQuantity,
+      original_unit: listing.originalUnit,
+      original_price_per_unit: listing.originalPricePerUnit,
+      normalized_product: listing.normalizedProduct,
+      product_category: listing.productCategory,
+      canonical_quantity: listing.canonicalQuantity,
+      canonical_unit: listing.canonicalUnit,
+      canonical_price_per_canonical_unit: listing.canonicalPricePerCanonicalUnit,
+      assumptions: listing.assumptions,
+    };
+  }
 
   return {
     vendor_id: listing.vendorId,
@@ -307,20 +360,34 @@ function buildListingInsertPayload(listing: Listing | NormalizedListing) {
     original_quantity: listing.quantity,
     original_unit: listing.unit,
     original_price_per_unit: listing.pricePerUnit,
-    normalized_product: normalizedProduct,
-    product_category: productCategory,
-    canonical_quantity: listing.canonicalQuantity ?? null,
-    canonical_unit: listing.canonicalUnit ?? null,
-    canonical_price_per_canonical_unit:
-      listing.canonicalPricePerCanonicalUnit ?? null,
-    assumptions,
+    normalized_product: listing.product,
+    product_category: DEFAULT_PRODUCT_CATEGORY,
+    canonical_quantity: null,
+    canonical_unit: null,
+    canonical_price_per_canonical_unit: null,
+    assumptions: [],
   };
 }
 
 function buildRequestInsertPayload(request: Request | NormalizedRequest) {
-  const normalizedProduct = request.normalizedProduct ?? request.product;
-  const productCategory = request.productCategory ?? DEFAULT_PRODUCT_CATEGORY;
-  const assumptions = request.assumptions ?? [];
+  if ("normalizedProduct" in request) {
+    return {
+      buyer_id: request.buyerId,
+      raw_input: request.rawInput ?? "",
+      status: request.status,
+      needed_date: request.neededDate ?? null,
+      original_product: request.originalProduct,
+      original_quantity: request.originalQuantity,
+      original_unit: request.originalUnit,
+      original_price_per_unit: request.originalPricePerUnit,
+      normalized_product: request.normalizedProduct,
+      product_category: request.productCategory,
+      canonical_quantity: request.canonicalQuantity,
+      canonical_unit: request.canonicalUnit,
+      canonical_price_per_canonical_unit: request.canonicalPricePerCanonicalUnit,
+      assumptions: request.assumptions,
+    };
+  }
 
   return {
     buyer_id: request.buyerId,
@@ -331,13 +398,12 @@ function buildRequestInsertPayload(request: Request | NormalizedRequest) {
     original_quantity: request.quantity,
     original_unit: request.unit,
     original_price_per_unit: request.pricePerUnit,
-    normalized_product: normalizedProduct,
-    product_category: productCategory,
-    canonical_quantity: request.canonicalQuantity ?? null,
-    canonical_unit: request.canonicalUnit ?? null,
-    canonical_price_per_canonical_unit:
-      request.canonicalPricePerCanonicalUnit ?? null,
-    assumptions,
+    normalized_product: request.product,
+    product_category: DEFAULT_PRODUCT_CATEGORY,
+    canonical_quantity: null,
+    canonical_unit: null,
+    canonical_price_per_canonical_unit: null,
+    assumptions: [],
   };
 }
 
@@ -350,6 +416,32 @@ export async function getListings(): Promise<Listing[]> {
 
   if (error) throw new Error(`Failed to fetch listings: ${error.message}`);
   return (data ?? []).map((row) => mapListingRow(row as ListingRow));
+}
+
+export async function getNormalizedListings(): Promise<NormalizedListing[]> {
+  const supabase = await getDbClient();
+  const { data, error } = await supabase
+    .from("listings")
+    .select("*")
+    .order("created_at", { ascending: false });
+
+  if (error) throw new Error(`Failed to fetch listings: ${error.message}`);
+  return (data ?? []).map((row) => mapNormalizedListingRow(row as ListingRow));
+}
+
+export async function getNormalizedListingsByVendor(vendorId: string): Promise<NormalizedListing[]> {
+  const supabase = await getDbClient();
+  const { data, error } = await supabase
+    .from("listings")
+    .select("*")
+    .eq("vendor_id", vendorId)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    throw new Error(`Failed to fetch normalized listings for vendor ${vendorId}: ${error.message}`);
+  }
+
+  return (data ?? []).map((row) => mapNormalizedListingRow(row as ListingRow));
 }
 
 export async function getListingsByVendor(vendorId: string): Promise<Listing[]> {
@@ -435,36 +527,7 @@ export async function updateListingStatus(
   if (error) throw new Error(`Failed to update listing ${id}: ${error.message}`);
 }
 
-export async function updateListingNormalization(
-  id: string,
-  normalization: Pick<
-    NormalizedListing,
-    | "normalizedProduct"
-    | "productCategory"
-    | "canonicalQuantity"
-    | "canonicalUnit"
-    | "canonicalPricePerCanonicalUnit"
-    | "assumptions"
-  >
-): Promise<void> {
-  const supabase = await getDbClient();
-  const { error } = await supabase
-    .from("listings")
-    .update({
-      normalized_product: normalization.normalizedProduct,
-      product_category: normalization.productCategory,
-      canonical_quantity: normalization.canonicalQuantity,
-      canonical_unit: normalization.canonicalUnit,
-      canonical_price_per_canonical_unit:
-        normalization.canonicalPricePerCanonicalUnit,
-      assumptions: normalization.assumptions,
-    })
-    .eq("id", id);
-
-  if (error) {
-    throw new Error(`Failed to update listing normalization for ${id}: ${error.message}`);
-  }
-}
+// Functions for updating runtime normalization have been removed since normalization is now done at creation time only.
 
 export async function getRequests(): Promise<Request[]> {
   const supabase = await getDbClient();
@@ -475,6 +538,32 @@ export async function getRequests(): Promise<Request[]> {
 
   if (error) throw new Error(`Failed to fetch requests: ${error.message}`);
   return (data ?? []).map((row) => mapRequestRow(row as RequestRow));
+}
+
+export async function getNormalizedRequests(): Promise<NormalizedRequest[]> {
+  const supabase = await getDbClient();
+  const { data, error } = await supabase
+    .from("requests")
+    .select("*")
+    .order("created_at", { ascending: false });
+
+  if (error) throw new Error(`Failed to fetch requests: ${error.message}`);
+  return (data ?? []).map((row) => mapNormalizedRequestRow(row as RequestRow));
+}
+
+export async function getNormalizedRequestsByBuyer(buyerId: string): Promise<NormalizedRequest[]> {
+  const supabase = await getDbClient();
+  const { data, error } = await supabase
+    .from("requests")
+    .select("*")
+    .eq("buyer_id", buyerId)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    throw new Error(`Failed to fetch normalized requests for buyer ${buyerId}: ${error.message}`);
+  }
+
+  return (data ?? []).map((row) => mapNormalizedRequestRow(row as RequestRow));
 }
 
 export async function getRequestsByBuyer(buyerId: string): Promise<Request[]> {
@@ -560,36 +649,7 @@ export async function updateRequestStatus(
   if (error) throw new Error(`Failed to update request ${id}: ${error.message}`);
 }
 
-export async function updateRequestNormalization(
-  id: string,
-  normalization: Pick<
-    NormalizedRequest,
-    | "normalizedProduct"
-    | "productCategory"
-    | "canonicalQuantity"
-    | "canonicalUnit"
-    | "canonicalPricePerCanonicalUnit"
-    | "assumptions"
-  >
-): Promise<void> {
-  const supabase = await getDbClient();
-  const { error } = await supabase
-    .from("requests")
-    .update({
-      normalized_product: normalization.normalizedProduct,
-      product_category: normalization.productCategory,
-      canonical_quantity: normalization.canonicalQuantity,
-      canonical_unit: normalization.canonicalUnit,
-      canonical_price_per_canonical_unit:
-        normalization.canonicalPricePerCanonicalUnit,
-      assumptions: normalization.assumptions,
-    })
-    .eq("id", id);
-
-  if (error) {
-    throw new Error(`Failed to update request normalization for ${id}: ${error.message}`);
-  }
-}
+// Functions for updating runtime normalization have been removed since normalization is now done at creation time only.
 
 export async function getMatches(): Promise<Match[]> {
   const supabase = await getDbClient();

@@ -1,18 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { runMatchingPipeline } from "@/lib/matchingPipeline";
-import type { Listing, Request } from "@/types";
 
 export async function POST(req: NextRequest) {
   try {
     const body = (await req.json().catch(() => ({}))) as {
-      listings?: Listing[];
-      requests?: Request[];
-      requirements?: Request[];
+      role?: "farmer" | "buyer";
+      userId?: string;
     };
 
     const result = await runMatchingPipeline({
-      listings: body.listings,
-      requests: body.requests ?? body.requirements,
+      role: body.role,
+      userId: body.userId,
     });
 
     return NextResponse.json(result);

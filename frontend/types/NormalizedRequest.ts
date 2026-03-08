@@ -1,12 +1,21 @@
 import type { Request } from "./Request";
 import type { CanonicalUnit, UnitFamily } from "./NormalizedListing";
 
-export type NormalizedRequest = Request & {
+export type NormalizedRequest = {
+    id: string;
+    buyerId: string;
+    rawInput: string;
+    originalProduct: string;
     normalizedProduct: string;
     productCategory: string;
-    unitFamily: UnitFamily | null;
-    canonicalQuantity: number | null;
-    canonicalUnit: CanonicalUnit | null;
-    canonicalPricePerCanonicalUnit: number | null;
+    originalQuantity: number;
+    originalUnit: string;
+    originalPricePerUnit: number;
+    canonicalQuantity: number;
+    canonicalUnit: string;
+    canonicalPricePerCanonicalUnit: number;
     assumptions: string[];
+    status: string;
+    createdAt: string;
+    neededDate: string;
 };
