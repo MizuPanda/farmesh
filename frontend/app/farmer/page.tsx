@@ -22,6 +22,31 @@ const tabs = [
   { label: "Matches", value: "matches" },
 ];
 
+function getNextMatchStatus(status: Match["status"]): Match["status"] | null {
+  if (status === "PROPOSED" || status === "AWAITING_CONFIRMATION") {
+    return "CONFIRMED";
+  }
+  if (status === "CONFIRMED") {
+    return "FULFILLED";
+  }
+  return null;
+}
+
+function buildFarmerMatchStatusMessage(match: Match, nextStatus: Match["status"]) {
+  if (nextStatus === "CONFIRMED") {
+    const buyerName = match.buyer?.businessName ?? match.buyer?.name ?? "the buyer";
+    const contactParts = [match.buyer?.phone, match.buyer?.email].filter(Boolean).join(" / ");
+    const contactSuffix = contactParts ? ` Contact ${buyerName} at ${contactParts}.` : "";
+    return `Match for ${match.product} is now CONFIRMED.${contactSuffix}`;
+  }
+
+  if (nextStatus === "FULFILLED") {
+    return `Match for ${match.product} is now FULFILLED.`;
+  }
+
+  return `Match for ${match.product} updated to ${nextStatus}.`;
+}
+
 export default function FarmerDashboard() {
   const [activeTab, setActiveTab] = useState("listings");
   const [showPostForm, setShowPostForm] = useState(false);
@@ -101,6 +126,28 @@ export default function FarmerDashboard() {
     };
   }, [fetchDashboardData]);
 
+  useEffect(() => {
+    const handleDashboardNotification = (event: Event) => {
+      const customEvent = event as CustomEvent<{ message?: string }>;
+      const message = customEvent.detail?.message?.trim();
+      if (!message) return;
+      setStatusMessage(message);
+      void refreshData();
+    };
+
+    window.addEventListener(
+      "farmesh:dashboard-notification",
+      handleDashboardNotification as EventListener
+    );
+
+    return () => {
+      window.removeEventListener(
+        "farmesh:dashboard-notification",
+        handleDashboardNotification as EventListener
+      );
+    };
+  }, [refreshData]);
+
   const runMatching = async () => {
     setRunningMatch(true);
     setStatusMessage(null);
@@ -137,7 +184,11 @@ export default function FarmerDashboard() {
   };
 
   const activeCount = listings.filter((listing) => listing.status === "OPEN").length;
-  const matchedCount = listings.filter((listing) => listing.status === "MATCHED").length;
+  const matchedCount = listings.filter((listing) =>
+    listing.status === "MATCHED" ||
+    listing.status === "CONFIRMED" ||
+    listing.status === "FULFILLED"
+  ).length;
 
   const handleDeleteListing = useCallback(
     async (listing: Listing) => {
@@ -198,6 +249,49 @@ export default function FarmerDashboard() {
         await refreshData();
       } catch (error) {
         setStatusMessage(error instanceof Error ? error.message : "Failed to decline match.");
+      }
+    },
+    [notifyDashboardAction, refreshData]
+  );
+
+  const handleAdvanceMatchStatus = useCallback(
+    async (match: Match) => {
+      const nextStatus = getNextMatchStatus(match.status);
+      if (!nextStatus) return;
+
+      setStatusMessage(null);
+
+      try {
+        const response = await fetch(`/api/matches/${match.id}`, {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ status: nextStatus }),
+        });
+
+        if (!response.ok) {
+          const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+          throw new Error(payload?.error ?? "Failed to update match.");
+        }
+
+        const payload = (await response.json()) as {
+          status?: Match["status"];
+          downgraded?: boolean;
+          requestedStatus?: Match["status"];
+        };
+        const appliedStatus = payload.status ?? nextStatus;
+
+        setMatches((previous) =>
+          previous.map((item) => (item.id === match.id ? { ...item, status: appliedStatus } : item))
+        );
+
+        const message = buildFarmerMatchStatusMessage(match, appliedStatus);
+        setStatusMessage(message);
+        notifyDashboardAction(message);
+        await refreshData();
+      } catch (error) {
+        setStatusMessage(error instanceof Error ? error.message : "Failed to update match.");
       }
     },
     [notifyDashboardAction, refreshData]
@@ -325,6 +419,7 @@ export default function FarmerDashboard() {
                 <FarmerMatchCard
                   key={match.id}
                   match={match}
+                  onAdvanceStatus={handleAdvanceMatchStatus}
                   onDecline={handleDeclineMatch}
                 />
               ))}

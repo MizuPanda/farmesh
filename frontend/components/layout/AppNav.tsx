@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { Sprout, Bell, LogOut, UserRound } from "lucide-react";
 import { getUser } from "@/lib/auth";
 import { signout } from "@/app/actions/signout";
-import type { Listing, Request, User } from "@/types";
+import type { Listing, Match, Request, User } from "@/types";
 
 type AppNavProps = {
   unreadCount?: number;
@@ -38,7 +38,19 @@ type EntitySnapshot = Record<
 type NotificationSnapshot = {
   listings: EntitySnapshot;
   requests: EntitySnapshot;
+  matches: MatchSnapshot;
 };
+
+type MatchSnapshot = Record<
+  string,
+  {
+    status: string;
+    product: string;
+    counterpartyName: string | null;
+    counterpartyPhone: string | null;
+    counterpartyEmail: string | null;
+  }
+>;
 
 const NOTIFICATION_POLL_MS = 60_000;
 const CHECK_THROTTLE_MS = 8_000;
@@ -79,6 +91,8 @@ function parseSnapshot(raw: string | null): NotificationSnapshot | null {
         parsed.listings && typeof parsed.listings === "object" ? parsed.listings : {},
       requests:
         parsed.requests && typeof parsed.requests === "object" ? parsed.requests : {},
+      matches:
+        parsed.matches && typeof parsed.matches === "object" ? parsed.matches : {},
     };
   } catch {
     return null;
@@ -91,12 +105,56 @@ function formatTime(iso: string) {
   return date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 }
 
+function buildMatchSnapshot(matches: Match[], userType: User["type"]): MatchSnapshot {
+  return matches.reduce<MatchSnapshot>((acc, match) => {
+    const isFarmer = userType === "farmer";
+    const counterparty = isFarmer ? match.buyer : match.vendor;
+    acc[match.id] = {
+      status: match.status,
+      product: match.product,
+      counterpartyName: counterparty?.businessName ?? counterparty?.name ?? null,
+      counterpartyPhone: counterparty?.phone ?? null,
+      counterpartyEmail: counterparty?.email ?? null,
+    };
+    return acc;
+  }, {});
+}
+
+function buildMatchNotificationMessage(
+  match: MatchSnapshot[string],
+  nextStatus: string,
+  options?: { isNew?: boolean }
+) {
+  if (options?.isNew) {
+    return `New match proposed for ${match.product}.`;
+  }
+
+  if (nextStatus === "CONFIRMED") {
+    const contact = [match.counterpartyPhone, match.counterpartyEmail]
+      .filter(Boolean)
+      .join(" / ");
+    if (!contact) {
+      return `Match for ${match.product} moved to CONFIRMED. Please contact your counterparty.`;
+    }
+
+    const counterpartyLabel = match.counterpartyName ?? "your counterparty";
+    return `Match for ${match.product} moved to CONFIRMED. Contact ${counterpartyLabel} at ${contact}.`;
+  }
+
+  if (nextStatus === "FULFILLED") {
+    return `Match for ${match.product} moved to FULFILLED.`;
+  }
+
+  return `Match for ${match.product} moved to ${nextStatus}.`;
+}
+
 export default function AppNav({ unreadCount = 0 }: AppNavProps) {
   const [user, setUser] = useState<User | null>(null);
   const [notifications, setNotifications] = useState<RuntimeNotification[]>([]);
   const [panelOpen, setPanelOpen] = useState(false);
   const pathname = usePathname();
   const snapshotRef = useRef<NotificationSnapshot | null>(null);
+  const notificationsRef = useRef<RuntimeNotification[]>([]);
   const inFlightCheckRef = useRef<Promise<void> | null>(null);
   const lastCheckAtRef = useRef(0);
 
@@ -137,11 +195,25 @@ export default function AppNav({ unreadCount = 0 }: AppNavProps) {
     [persistNotifications]
   );
 
+  useEffect(() => {
+    notificationsRef.current = notifications;
+  }, [notifications]);
+
   const fetchCurrentSnapshot = useCallback(async (currentUser: User): Promise<NotificationSnapshot> => {
     if (currentUser.type === "farmer") {
-      const response = await fetch(`/api/listings?vendorId=${currentUser.id}`, { cache: "no-store" });
-      if (!response.ok) throw new Error("Failed to fetch listings for notifications");
-      const listings = (await response.json()) as Listing[];
+      const [listingResponse, matchesResponse] = await Promise.all([
+        fetch(`/api/listings?vendorId=${currentUser.id}`, { cache: "no-store" }),
+        fetch(`/api/matches?vendorId=${currentUser.id}`, { cache: "no-store" }),
+      ]);
+
+      if (!listingResponse.ok) throw new Error("Failed to fetch listings for notifications");
+      if (!matchesResponse.ok) throw new Error("Failed to fetch matches for notifications");
+
+      const [listings, matches] = (await Promise.all([
+        listingResponse.json(),
+        matchesResponse.json(),
+      ])) as [Listing[], Match[]];
+
       const listingSnapshot = listings.reduce<EntitySnapshot>((acc, listing) => {
         acc[listing.id] = {
           status: listing.status,
@@ -152,12 +224,26 @@ export default function AppNav({ unreadCount = 0 }: AppNavProps) {
         return acc;
       }, {});
 
-      return { listings: listingSnapshot, requests: {} };
+      return {
+        listings: listingSnapshot,
+        requests: {},
+        matches: buildMatchSnapshot(matches, currentUser.type),
+      };
     }
 
-    const response = await fetch(`/api/requests?buyerId=${currentUser.id}`, { cache: "no-store" });
-    if (!response.ok) throw new Error("Failed to fetch requests for notifications");
-    const requests = (await response.json()) as Request[];
+    const [requestResponse, matchesResponse] = await Promise.all([
+      fetch(`/api/requests?buyerId=${currentUser.id}`, { cache: "no-store" }),
+      fetch(`/api/matches?buyerId=${currentUser.id}`, { cache: "no-store" }),
+    ]);
+
+    if (!requestResponse.ok) throw new Error("Failed to fetch requests for notifications");
+    if (!matchesResponse.ok) throw new Error("Failed to fetch matches for notifications");
+
+    const [requests, matches] = (await Promise.all([
+      requestResponse.json(),
+      matchesResponse.json(),
+    ])) as [Request[], Match[]];
+
     const requestSnapshot = requests.reduce<EntitySnapshot>((acc, request) => {
       acc[request.id] = {
         status: request.status,
@@ -168,7 +254,11 @@ export default function AppNav({ unreadCount = 0 }: AppNavProps) {
       return acc;
     }, {});
 
-    return { listings: {}, requests: requestSnapshot };
+    return {
+      listings: {},
+      requests: requestSnapshot,
+      matches: buildMatchSnapshot(matches, currentUser.type),
+    };
   }, []);
 
   const checkForNotificationUpdates = useCallback(
@@ -233,15 +323,52 @@ export default function AppNav({ unreadCount = 0 }: AppNavProps) {
         }
       }
 
+      const previousMatches = previousSnapshot.matches;
+      for (const [id, match] of Object.entries(currentSnapshot.matches)) {
+        const previous = previousMatches[id];
+        if (!previous) {
+          next.push({
+            id: `match:new:${id}:${match.status}`,
+            message: buildMatchNotificationMessage(match, match.status, { isNew: true }),
+            createdAt: nowIso,
+            read: false,
+          });
+          continue;
+        }
+
+        if (previous.status !== match.status) {
+          next.push({
+            id: `match:status:${id}:${previous.status}:${match.status}`,
+            message: buildMatchNotificationMessage(match, match.status),
+            createdAt: nowIso,
+            read: false,
+          });
+        }
+      }
+
       if (next.length > 0) {
-        setNotifications((previousItems) => {
-          const existingIds = new Set(previousItems.map((item) => item.id));
-          const uniqueNew = next.filter((item) => !existingIds.has(item.id));
-          if (uniqueNew.length === 0) return previousItems;
-          const merged = [...uniqueNew, ...previousItems].slice(0, 40);
-          persistNotifications(currentUser.id, merged);
-          return merged;
-        });
+        const existingIds = new Set(notificationsRef.current.map((item) => item.id));
+        const uniqueNew = next.filter((item) => !existingIds.has(item.id));
+
+        if (uniqueNew.length > 0) {
+          setNotifications((previousItems) => {
+            const merged = [...uniqueNew, ...previousItems].slice(0, 40);
+            persistNotifications(currentUser.id, merged);
+            return merged;
+          });
+
+          for (const notification of uniqueNew) {
+            window.dispatchEvent(
+              new CustomEvent("farmesh:dashboard-notification", {
+                detail: {
+                  id: notification.id,
+                  message: notification.message,
+                  createdAt: notification.createdAt,
+                },
+              })
+            );
+          }
+        }
       }
 
       snapshotRef.current = currentSnapshot;

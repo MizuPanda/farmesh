@@ -1,4 +1,9 @@
-export type ListingStatus = "OPEN" | "MATCHED" | "EXPIRED";
+export type ListingStatus =
+    | "OPEN"
+    | "MATCHED"
+    | "CONFIRMED"
+    | "FULFILLED"
+    | "EXPIRED";
 
 export type Listing = {
     id: string;

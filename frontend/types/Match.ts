@@ -2,6 +2,7 @@ export type MatchStatus =
     | "PROPOSED"
     | "AWAITING_CONFIRMATION"
     | "CONFIRMED"
+    | "FULFILLED"
     | "REJECTED";
 
 export type MatchPartyDetails = {

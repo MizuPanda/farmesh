@@ -22,6 +22,31 @@ const tabs = [
   { label: "Matches", value: "matches" },
 ];
 
+function getNextMatchStatus(status: Match["status"]): Match["status"] | null {
+  if (status === "PROPOSED" || status === "AWAITING_CONFIRMATION") {
+    return "CONFIRMED";
+  }
+  if (status === "CONFIRMED") {
+    return "FULFILLED";
+  }
+  return null;
+}
+
+function buildBuyerMatchStatusMessage(match: Match, nextStatus: Match["status"]) {
+  if (nextStatus === "CONFIRMED") {
+    const vendorName = match.vendor?.businessName ?? match.vendor?.name ?? "the vendor";
+    const contactParts = [match.vendor?.phone, match.vendor?.email].filter(Boolean).join(" / ");
+    const contactSuffix = contactParts ? ` Contact ${vendorName} at ${contactParts}.` : "";
+    return `Match for ${match.product} is now CONFIRMED.${contactSuffix}`;
+  }
+
+  if (nextStatus === "FULFILLED") {
+    return `Match for ${match.product} is now FULFILLED.`;
+  }
+
+  return `Match for ${match.product} updated to ${nextStatus}.`;
+}
+
 export default function BuyerDashboard() {
   const [activeTab, setActiveTab] = useState("requests");
   const [showPostForm, setShowPostForm] = useState(false);
@@ -101,6 +126,28 @@ export default function BuyerDashboard() {
     };
   }, [fetchDashboardData]);
 
+  useEffect(() => {
+    const handleDashboardNotification = (event: Event) => {
+      const customEvent = event as CustomEvent<{ message?: string }>;
+      const message = customEvent.detail?.message?.trim();
+      if (!message) return;
+      setStatusMessage(message);
+      void refreshData();
+    };
+
+    window.addEventListener(
+      "farmesh:dashboard-notification",
+      handleDashboardNotification as EventListener
+    );
+
+    return () => {
+      window.removeEventListener(
+        "farmesh:dashboard-notification",
+        handleDashboardNotification as EventListener
+      );
+    };
+  }, [refreshData]);
+
   const runMatching = async () => {
     setRunningMatch(true);
     setStatusMessage(null);
@@ -137,7 +184,9 @@ export default function BuyerDashboard() {
   };
 
   const openCount = requests.filter((request) => request.status === "OPEN").length;
-  const proposedCount = matches.filter((match) => match.status === "PROPOSED").length;
+  const proposedCount = matches.filter(
+    (match) => match.status === "PROPOSED" || match.status === "AWAITING_CONFIRMATION"
+  ).length;
 
   const handleDeleteRequest = useCallback(
     async (request: Request) => {
@@ -198,6 +247,49 @@ export default function BuyerDashboard() {
         await refreshData();
       } catch (error) {
         setStatusMessage(error instanceof Error ? error.message : "Failed to decline match.");
+      }
+    },
+    [notifyDashboardAction, refreshData]
+  );
+
+  const handleAdvanceMatchStatus = useCallback(
+    async (match: Match) => {
+      const nextStatus = getNextMatchStatus(match.status);
+      if (!nextStatus) return;
+
+      setStatusMessage(null);
+
+      try {
+        const response = await fetch(`/api/matches/${match.id}`, {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ status: nextStatus }),
+        });
+
+        if (!response.ok) {
+          const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+          throw new Error(payload?.error ?? "Failed to update match.");
+        }
+
+        const payload = (await response.json()) as {
+          status?: Match["status"];
+          downgraded?: boolean;
+          requestedStatus?: Match["status"];
+        };
+        const appliedStatus = payload.status ?? nextStatus;
+
+        setMatches((previous) =>
+          previous.map((item) => (item.id === match.id ? { ...item, status: appliedStatus } : item))
+        );
+
+        const message = buildBuyerMatchStatusMessage(match, appliedStatus);
+        setStatusMessage(message);
+        notifyDashboardAction(message);
+        await refreshData();
+      } catch (error) {
+        setStatusMessage(error instanceof Error ? error.message : "Failed to update match.");
       }
     },
     [notifyDashboardAction, refreshData]
@@ -331,6 +423,7 @@ export default function BuyerDashboard() {
                   key={match.id}
                   match={match}
                   recommended={index === 0}
+                  onAdvanceStatus={handleAdvanceMatchStatus}
                   onDecline={handleDeclineMatch}
                 />
               ))}

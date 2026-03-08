@@ -101,6 +101,7 @@ const ACTIVE_MATCH_STATUSES: MatchStatus[] = [
   "PROPOSED",
   "AWAITING_CONFIRMATION",
   "CONFIRMED",
+  "FULFILLED",
 ];
 
 type ListingMatchDetailsRow = {
@@ -750,4 +751,38 @@ export async function hasActiveMatchesForRequest(requestId: string): Promise<boo
 
   if (error) throw new Error(`Failed to check active matches for request ${requestId}: ${error.message}`);
   return (data ?? []).length > 0;
+}
+
+export async function getMatchStatusesForListing(listingId: string): Promise<MatchStatus[]> {
+  const supabase = await getDbClient();
+  const { data, error } = await supabase
+    .from("matches")
+    .select("status")
+    .eq("listing_id", listingId);
+
+  if (error) {
+    throw new Error(`Failed to fetch match statuses for listing ${listingId}: ${error.message}`);
+  }
+
+  return (data ?? [])
+    .map((row) => row.status)
+    .filter((status): status is MatchStatus => typeof status === "string")
+    .map((status) => status as MatchStatus);
+}
+
+export async function getMatchStatusesForRequest(requestId: string): Promise<MatchStatus[]> {
+  const supabase = await getDbClient();
+  const { data, error } = await supabase
+    .from("matches")
+    .select("status")
+    .eq("request_id", requestId);
+
+  if (error) {
+    throw new Error(`Failed to fetch match statuses for request ${requestId}: ${error.message}`);
+  }
+
+  return (data ?? [])
+    .map((row) => row.status)
+    .filter((status): status is MatchStatus => typeof status === "string")
+    .map((status) => status as MatchStatus);
 }

@@ -15,14 +15,16 @@ type MatchInsights = {
 
 type FarmerMatchCardProps = {
     match: Match;
+    onAdvanceStatus?: (match: Match) => Promise<void>;
     onDecline?: (match: Match) => Promise<void>;
 };
 
-export default function FarmerMatchCard({ match, onDecline }: FarmerMatchCardProps) {
+export default function FarmerMatchCard({ match, onAdvanceStatus, onDecline }: FarmerMatchCardProps) {
     const [showDetails, setShowDetails] = useState(false);
     const [insights, setInsights] = useState<MatchInsights | null>(null);
     const [loadingInsights, setLoadingInsights] = useState(false);
     const [insightError, setInsightError] = useState<string | null>(null);
+    const [advancing, setAdvancing] = useState(false);
     const [declining, setDeclining] = useState(false);
 
     const buyerName = match.buyer?.name ?? "Unknown Buyer";
@@ -34,6 +36,18 @@ export default function FarmerMatchCard({ match, onDecline }: FarmerMatchCardPro
     const requestPrice = match.request
         ? `$${match.request.pricePerUnit.toFixed(2)} / ${match.request.unit}`
         : null;
+    const buyerContact = [buyerPhone, buyerEmail].filter(Boolean).join(" · ");
+    const canConfirm = match.status === "PROPOSED" || match.status === "AWAITING_CONFIRMATION";
+    const canMarkFulfilled = match.status === "CONFIRMED";
+    const isFulfilled = match.status === "FULFILLED";
+    const canAdvance = canConfirm || canMarkFulfilled;
+    const canDecline = canConfirm;
+
+    const primaryLabel = canMarkFulfilled
+        ? "Mark Fulfilled"
+        : canConfirm
+            ? "Accept"
+            : "Fulfilled";
 
     const loadInsights = async () => {
         if (loadingInsights || insights) return;
@@ -80,6 +94,17 @@ export default function FarmerMatchCard({ match, onDecline }: FarmerMatchCardPro
         }
     };
 
+    const handleAdvance = async () => {
+        if (!onAdvanceStatus || !canAdvance || advancing) return;
+
+        try {
+            setAdvancing(true);
+            await onAdvanceStatus(match);
+        } finally {
+            setAdvancing(false);
+        }
+    };
+
     return (
         <div
             className="hover-lift flex flex-col border p-6 transition-all duration-400"
@@ -118,6 +143,33 @@ export default function FarmerMatchCard({ match, onDecline }: FarmerMatchCardPro
             <p className="mb-5 flex-1 text-sm leading-relaxed" style={{ color: "var(--text-muted)" }}>
                 {match.reason}
             </p>
+
+            {(match.status === "CONFIRMED" || match.status === "FULFILLED") && (
+                <div
+                    className="mb-5 border-l-2 px-4 py-3"
+                    style={{
+                        borderLeftColor: match.status === "FULFILLED" ? "#16a34a" : "#15803d",
+                        backgroundColor: "var(--surface-base)",
+                    }}
+                >
+                    <p
+                        className="text-[11px] font-semibold tracking-[0.15em] uppercase"
+                        style={{ color: match.status === "FULFILLED" ? "#166534" : "#166534" }}
+                    >
+                        {match.status === "FULFILLED" ? "Order fulfilled" : "Match confirmed"}
+                    </p>
+                    <p className="mt-1 text-sm" style={{ color: "var(--text-muted)" }}>
+                        {match.status === "FULFILLED"
+                            ? "This match is complete."
+                            : "Coordinate directly with the buyer using the contact details below."}
+                    </p>
+                    {buyerContact && (
+                        <p className="mt-1 text-sm" style={{ color: "var(--foreground)" }}>
+                            Buyer contact: {buyerContact}
+                        </p>
+                    )}
+                </div>
+            )}
 
             {!showDetails && (
                 <>
@@ -243,9 +295,11 @@ export default function FarmerMatchCard({ match, onDecline }: FarmerMatchCardPro
             <div className="flex flex-wrap gap-2">
                 <button
                     type="button"
-                    className="bg-green-600 px-5 py-2.5 text-xs font-semibold tracking-[0.12em] uppercase text-white transition-colors duration-300 hover:bg-green-700"
+                    onClick={() => void handleAdvance()}
+                    disabled={!onAdvanceStatus || !canAdvance || advancing || isFulfilled}
+                    className="bg-green-600 px-5 py-2.5 text-xs font-semibold tracking-[0.12em] uppercase text-white transition-colors duration-300 hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                    Accept
+                    {advancing ? "Saving..." : primaryLabel}
                 </button>
                 <button
                     type="button"
@@ -255,15 +309,17 @@ export default function FarmerMatchCard({ match, onDecline }: FarmerMatchCardPro
                 >
                     {showDetails ? "Back to Summary" : "View Details"}
                 </button>
-                <button
-                    type="button"
-                    onClick={() => void handleDecline()}
-                    disabled={declining || !onDecline}
-                    className="border px-5 py-2.5 text-xs font-semibold tracking-[0.12em] uppercase transition-colors duration-300 disabled:opacity-60"
-                    style={{ borderColor: "#fecaca", color: "#b91c1c" }}
-                >
-                    {declining ? "Declining..." : "Decline"}
-                </button>
+                {canDecline && (
+                    <button
+                        type="button"
+                        onClick={() => void handleDecline()}
+                        disabled={declining || !onDecline}
+                        className="border px-5 py-2.5 text-xs font-semibold tracking-[0.12em] uppercase transition-colors duration-300 disabled:opacity-60"
+                        style={{ borderColor: "#fecaca", color: "#b91c1c" }}
+                    >
+                        {declining ? "Declining..." : "Decline"}
+                    </button>
+                )}
             </div>
         </div>
     );
