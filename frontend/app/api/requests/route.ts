@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { normalizeForMatching } from "@backend/agents/normalizationAgent";
-import { getListings, getListingsByVendor, insertListing } from "@/lib/db";
+import { getRequests, getRequestsByBuyer, insertRequest } from "@/lib/db";
 import { runMatchingPipeline } from "@/lib/matchingPipeline";
 import { createClient } from "@/lib/supabase/server";
-import type { Listing } from "@/types";
+import type { Request } from "@/types";
 
 function parsePositiveNumber(value: unknown): number | null {
   const parsed = typeof value === "number" ? value : Number(value);
@@ -24,17 +24,17 @@ function toIsoDate(value: unknown, fallbackIso: string): string {
   return date.toISOString();
 }
 
-// GET /api/listings?vendorId=<uuid>
+// GET /api/requests?buyerId=<uuid>
 export async function GET(req: NextRequest) {
-  const vendorId = req.nextUrl.searchParams.get("vendorId");
-  const listings = vendorId
-    ? await getListingsByVendor(vendorId)
-    : await getListings();
+  const buyerId = req.nextUrl.searchParams.get("buyerId");
+  const requests = buyerId
+    ? await getRequestsByBuyer(buyerId)
+    : await getRequests();
 
-  return NextResponse.json(listings);
+  return NextResponse.json(requests);
 }
 
-// POST /api/listings
+// POST /api/requests
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
@@ -44,9 +44,9 @@ export async function POST(req: NextRequest) {
       data: { user },
     } = await supabase.auth.getUser();
 
-    const vendorId = user?.id ?? body.vendorId;
-    if (typeof vendorId !== "string" || vendorId.length === 0) {
-      return NextResponse.json({ error: "vendorId is required" }, { status: 400 });
+    const buyerId = user?.id ?? body.buyerId;
+    if (typeof buyerId !== "string" || buyerId.length === 0) {
+      return NextResponse.json({ error: "buyerId is required" }, { status: 400 });
     }
 
     if (typeof body.product !== "string" || body.product.trim().length === 0) {
@@ -69,36 +69,36 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const defaultExpiryIso = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+    const defaultNeededDate = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString();
 
-    const listingInput: Listing = {
+    const requestInput: Request = {
       id: "",
-      vendorId,
+      buyerId,
       rawInput: typeof body.rawInput === "string" ? body.rawInput : "",
       product: body.product.trim(),
       quantity,
       unit: typeof body.unit === "string" && body.unit.trim().length > 0 ? body.unit.trim() : "lb",
       pricePerUnit,
       status: "OPEN",
-      expirationDate: toIsoDate(body.expirationDate, defaultExpiryIso),
+      neededDate: toIsoDate(body.neededDate, defaultNeededDate),
       createdAt: new Date().toISOString(),
     };
 
-    let listingToPersist: Listing = listingInput;
+    let requestToPersist: Request = requestInput;
     let normalizationWarning: string | null = null;
 
     try {
       const normalized = await normalizeForMatching({
-        listings: [listingInput],
-        requests: [],
+        listings: [],
+        requests: [requestInput],
       });
-      listingToPersist = normalized.listings[0] ?? listingInput;
+      requestToPersist = normalized.requests[0] ?? requestInput;
     } catch (error) {
       normalizationWarning =
         error instanceof Error ? error.message : "Normalization failed";
     }
 
-    const created = await insertListing(listingToPersist);
+    const created = await insertRequest(requestToPersist);
 
     let matchResult: Awaited<ReturnType<typeof runMatchingPipeline>> | null = null;
     let matchingWarning: string | null = null;
@@ -112,7 +112,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(
       {
-        listing: created,
+        request: created,
         autoMatch: matchResult,
         warnings: {
           normalization: normalizationWarning,

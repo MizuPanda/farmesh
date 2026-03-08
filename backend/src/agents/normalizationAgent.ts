@@ -62,7 +62,14 @@ CRITICAL FORMATTING:
 - JSON only (no markdown, no surrounding prose).
 - Always include all normalized fields for each object.
 - Use null for unknown values and explain in assumptions.
+- Use strict RFC8259 JSON:
+  - every key must be double-quoted
+  - every string must be double-quoted
+  - no single quotes
+  - no trailing commas
 `;
+
+const DEFAULT_PRODUCT_CATEGORY = "EMPTY";
 
 type NormalizationResult = {
   normalizedListings: unknown[];
@@ -102,7 +109,7 @@ function mergeListing(base: Listing, value: unknown): NormalizedListing {
   return {
     ...base,
     normalizedProduct: toStringOrFallback(candidate.normalizedProduct, base.product),
-    productCategory: toStringOrFallback(candidate.productCategory, ""),
+    productCategory: toStringOrFallback(candidate.productCategory, DEFAULT_PRODUCT_CATEGORY),
     unitFamily: toUnitFamily(candidate.unitFamily),
     canonicalQuantity: toNullableNumber(candidate.canonicalQuantity),
     canonicalUnit: toCanonicalUnit(candidate.canonicalUnit),
@@ -116,7 +123,7 @@ function mergeRequest(base: Request, value: unknown): NormalizedRequest {
   return {
     ...base,
     normalizedProduct: toStringOrFallback(candidate.normalizedProduct, base.product),
-    productCategory: toStringOrFallback(candidate.productCategory, ""),
+    productCategory: toStringOrFallback(candidate.productCategory, DEFAULT_PRODUCT_CATEGORY),
     unitFamily: toUnitFamily(candidate.unitFamily),
     canonicalQuantity: toNullableNumber(candidate.canonicalQuantity),
     canonicalUnit: toCanonicalUnit(candidate.canonicalUnit),
@@ -141,11 +148,86 @@ function extractJsonObject(content: string): string {
   return cleaned.slice(firstBrace, lastBrace + 1);
 }
 
+function cleanAgentContent(content: string): string {
+  return content
+    .replace(/```json\s*/gi, "")
+    .replace(/```\s*/gi, "")
+    .trim();
+}
+
+function repairJsonLikeText(text: string): string {
+  let repaired = text.trim();
+
+  // Normalize obvious non-JSON tokens.
+  repaired = repaired
+    .replace(/\bundefined\b/g, "null")
+    .replace(/\bNaN\b/g, "null")
+    .replace(/\bInfinity\b/g, "null");
+
+  // Quote unquoted object keys: { key: ... } -> { "key": ... }.
+  repaired = repaired.replace(
+    /([{,]\s*)([A-Za-z_][A-Za-z0-9_]*)(\s*:)/g,
+    '$1"$2"$3'
+  );
+
+  // Convert single-quoted strings to double-quoted JSON strings.
+  repaired = repaired.replace(/'([^'\\]*(?:\\.[^'\\]*)*)'/g, (_, inner: string) => {
+    const escaped = inner
+      .replace(/\\/g, "\\\\")
+      .replace(/"/g, '\\"');
+    return `"${escaped}"`;
+  });
+
+  // Remove trailing commas before object/array closes.
+  repaired = repaired.replace(/,\s*([}\]])/g, "$1");
+
+  return repaired;
+}
+
+function parseNormalizationResponseContent(content: string): Partial<NormalizationResult> {
+  const cleaned = cleanAgentContent(content);
+  const candidates = new Set<string>();
+
+  if (cleaned.length > 0) {
+    candidates.add(cleaned);
+  }
+
+  try {
+    candidates.add(extractJsonObject(cleaned));
+  } catch {
+    // Best-effort only; strict parse attempt on `cleaned` still runs.
+  }
+
+  const parseErrors: Error[] = [];
+
+  for (const candidate of candidates) {
+    try {
+      return JSON.parse(candidate) as Partial<NormalizationResult>;
+    } catch (error) {
+      parseErrors.push(error instanceof Error ? error : new Error(String(error)));
+    }
+
+    const repaired = repairJsonLikeText(candidate);
+    if (repaired !== candidate) {
+      try {
+        return JSON.parse(repaired) as Partial<NormalizationResult>;
+      } catch (error) {
+        parseErrors.push(error instanceof Error ? error : new Error(String(error)));
+      }
+    }
+  }
+
+  const combined = parseErrors.map((error) => error.message).join(" | ");
+  throw new Error(
+    `Normalization response JSON parse failed after recovery attempts: ${combined || "unknown parse error"}`
+  );
+}
+
 function getFallbackListings(listings: Listing[]): NormalizedListing[] {
   return listings.map((listing) => ({
     ...listing,
     normalizedProduct: listing.product,
-    productCategory: "",
+    productCategory: DEFAULT_PRODUCT_CATEGORY,
     unitFamily: null,
     canonicalQuantity: null,
     canonicalUnit: null,
@@ -158,7 +240,7 @@ function getFallbackRequests(requests: Request[]): NormalizedRequest[] {
   return requests.map((request) => ({
     ...request,
     normalizedProduct: request.product,
-    productCategory: "",
+    productCategory: DEFAULT_PRODUCT_CATEGORY,
     unitFamily: null,
     canonicalQuantity: null,
     canonicalUnit: null,
@@ -200,22 +282,33 @@ export async function normalizeForMatching(params: {
       }),
       llm_provider: NORMALIZATION_PROVIDER,
       model_name: NORMALIZATION_MODEL,
+      memory: "Auto",
       stream: false,
     })) as MessageResponse;
 
     if (response.content) {
-      const jsonText = extractJsonObject(response.content);
-      const parsed = JSON.parse(jsonText) as Partial<NormalizationResult>;
+      try {
+        const parsed = parseNormalizationResponseContent(response.content);
 
-      if (Array.isArray(parsed.normalizedListings)) {
-        normalizedListings = params.listings.map((listing, index) =>
-          mergeListing(listing, parsed.normalizedListings?.[index])
+        if (Array.isArray(parsed.normalizedListings)) {
+          normalizedListings = params.listings.map((listing, index) =>
+            mergeListing(listing, parsed.normalizedListings?.[index])
+          );
+        }
+
+        if (Array.isArray(parsed.normalizedRequests)) {
+          normalizedRequests = params.requests.map((request, index) =>
+            mergeRequest(request, parsed.normalizedRequests?.[index])
+          );
+        }
+      } catch (parseError) {
+        console.warn(
+          "[NormalizationAgent] Failed to parse normalization response content, using fallback:",
+          parseError
         );
-      }
-
-      if (Array.isArray(parsed.normalizedRequests)) {
-        normalizedRequests = params.requests.map((request, index) =>
-          mergeRequest(request, parsed.normalizedRequests?.[index])
+        console.warn(
+          "[NormalizationAgent] Raw response preview:",
+          response.content.slice(0, 1500)
         );
       }
     }

@@ -1,27 +1,12 @@
-import { RequestStatus } from "./Request";
-import { ProductCategory } from "./NormalizedListing";
+import type { Request } from "./Request";
+import type { CanonicalUnit, UnitFamily } from "./NormalizedListing";
 
-export type NormalizedRequest = {
-    id: string;
-    buyerId: string;
-    rawInput?: string;
-
-    originalProduct: string;
+export type NormalizedRequest = Request & {
     normalizedProduct: string;
-    productCategory: ProductCategory;
-
-    originalQuantity: number;
-    originalUnit: string;
-    originalPricePerUnit: number;
-
-    canonicalQuantity: number;
-    canonicalUnit: string;
-    canonicalPricePerCanonicalUnit: number;
-
+    productCategory: string;
+    unitFamily: UnitFamily | null;
+    canonicalQuantity: number | null;
+    canonicalUnit: CanonicalUnit | null;
+    canonicalPricePerCanonicalUnit: number | null;
     assumptions: string[];
-
-    status: RequestStatus;
-
-    createdAt?: string;
-    neededDate: string;
 };

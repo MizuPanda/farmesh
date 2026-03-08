@@ -1,7 +1,17 @@
 export type { UserType, User } from "./User";
 export type { ListingStatus, Listing } from "./Listing";
-export type { ProductCategory, NormalizedListing } from "./NormalizedListing";
-export type { MatchStatus, Match } from "./Match";
+export type {
+    UnitFamily,
+    CanonicalUnit,
+    NormalizedListing,
+} from "./NormalizedListing";
+export type {
+    MatchStatus,
+    Match,
+    MatchPartyDetails,
+    MatchListingDetails,
+    MatchRequestDetails,
+} from "./Match";
 export type { RequestStatus, Request } from "./Request";
 export type { NormalizedRequest } from "./NormalizedRequest";
 

@@ -12,6 +12,15 @@ export default function BuyerMatchCard({
     recommended = false,
 }: BuyerMatchCardProps) {
     const isSplit = match.product.toLowerCase().includes("split");
+    const vendorName = match.vendor?.name ?? "Unknown Vendor";
+    const vendorBusiness = match.vendor?.businessName ?? null;
+    const vendorPhone = match.vendor?.phone ?? null;
+    const vendorEmail = match.vendor?.email ?? null;
+    const listingProduct = match.listing?.product ?? match.product;
+    const listingQuantity = match.listing ? `${match.listing.quantity} ${match.listing.unit}` : null;
+    const listingPrice = match.listing
+        ? `$${match.listing.pricePerUnit.toFixed(2)} / ${match.listing.unit}`
+        : null;
 
     return (
         <div
@@ -71,7 +80,17 @@ export default function BuyerMatchCard({
                     className="border px-4 py-3 text-sm"
                     style={{ borderColor: "var(--border-soft)", backgroundColor: "var(--surface-base)", color: "var(--text-muted)" }}
                 >
-                    Listing #{match.listingId} — {match.product}
+                    <p className="font-semibold" style={{ color: "var(--foreground)" }}>
+                        {vendorName}
+                    </p>
+                    {vendorBusiness && <p>Business: {vendorBusiness}</p>}
+                    {vendorPhone && <p>Phone: {vendorPhone}</p>}
+                    {vendorEmail && <p>Email: {vendorEmail}</p>}
+                    <p className="mt-2">
+                        Product: {listingProduct}
+                    </p>
+                    {listingQuantity && <p>Available: {listingQuantity}</p>}
+                    {listingPrice && <p>Price: {listingPrice}</p>}
                 </div>
             </div>
 

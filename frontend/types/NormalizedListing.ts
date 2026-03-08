@@ -1,30 +1,14 @@
-import { ListingStatus } from "./Listing";
+import type { Listing } from "./Listing";
 
-export type ProductCategory =
-    | "eggs"
-    | "dairy"
-    | "produce"
-    | "meat"
-    | "grains"
-    | "other";
+export type UnitFamily = "weight" | "count";
+export type CanonicalUnit = "kg" | "piece";
 
-export type NormalizedListing = {
-    id: string;
-    vendorId: string;
-    rawInput?: string;
-
-    originalProduct: string;
+export type NormalizedListing = Listing & {
     normalizedProduct: string;
-    productCategory: ProductCategory;
-
-    quantity: number;
-    unit: string;
-    pricePerUnit: number;
-
-    status: ListingStatus;
-
-    createdAt?: string;
-    expirationDate: string;
-
+    productCategory: string;
+    unitFamily: UnitFamily | null;
+    canonicalQuantity: number | null;
+    canonicalUnit: CanonicalUnit | null;
+    canonicalPricePerCanonicalUnit: number | null;
     assumptions: string[];
 };

@@ -6,6 +6,13 @@ type ListingsTableProps = {
 };
 
 export default function ListingsTable({ listings }: ListingsTableProps) {
+    const formatDate = (value?: string) => {
+        if (!value) return "—";
+        const parsed = new Date(value);
+        if (Number.isNaN(parsed.getTime())) return value;
+        return parsed.toLocaleDateString();
+    };
+
     return (
         <div
             className="overflow-x-auto border"
@@ -50,7 +57,7 @@ export default function ListingsTable({ listings }: ListingsTableProps) {
                                     ${listing.pricePerUnit.toFixed(2)} / {listing.unit}
                                 </td>
                                 <td className="px-5 py-4 text-sm" style={{ color: "var(--text-subtle)" }}>
-                                    {listing.expirationDate ?? "—"}
+                                    {formatDate(listing.expirationDate)}
                                 </td>
                                 <td className="px-5 py-4">
                                     <StatusBadge status={listing.status} />

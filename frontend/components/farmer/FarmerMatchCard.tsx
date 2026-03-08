@@ -6,6 +6,16 @@ type FarmerMatchCardProps = {
 };
 
 export default function FarmerMatchCard({ match }: FarmerMatchCardProps) {
+    const buyerName = match.buyer?.name ?? "Unknown Buyer";
+    const buyerBusiness = match.buyer?.businessName ?? null;
+    const buyerPhone = match.buyer?.phone ?? null;
+    const buyerEmail = match.buyer?.email ?? null;
+    const requestProduct = match.request?.product ?? match.product;
+    const requestQuantity = match.request ? `${match.request.quantity} ${match.request.unit}` : null;
+    const requestPrice = match.request
+        ? `$${match.request.pricePerUnit.toFixed(2)} / ${match.request.unit}`
+        : null;
+
     return (
         <div
             className="hover-lift flex flex-col border p-6 transition-all duration-400"
@@ -18,7 +28,7 @@ export default function FarmerMatchCard({ match }: FarmerMatchCardProps) {
                         {match.product}
                     </h3>
                     <p className="mt-0.5 text-[11px] tracking-[0.1em] uppercase" style={{ color: "var(--text-subtle)" }}>
-                        vs. Request #{match.requestId}
+                        Matched Buyer Demand
                     </p>
                 </div>
                 <StatusBadge status={match.status} />
@@ -45,6 +55,29 @@ export default function FarmerMatchCard({ match }: FarmerMatchCardProps) {
                 {match.reason}
             </p>
 
+            {/* Buyer details */}
+            <div className="mb-5">
+                <p className="mb-2 text-[11px] font-semibold tracking-[0.15em] uppercase" style={{ color: "var(--text-muted)" }}>
+                    Buyer details
+                </p>
+                <div
+                    className="border px-4 py-3 text-sm"
+                    style={{ borderColor: "var(--border-soft)", backgroundColor: "var(--surface-base)", color: "var(--text-muted)" }}
+                >
+                    <p className="font-semibold" style={{ color: "var(--foreground)" }}>
+                        {buyerName}
+                    </p>
+                    {buyerBusiness && <p>Business: {buyerBusiness}</p>}
+                    {buyerPhone && <p>Phone: {buyerPhone}</p>}
+                    {buyerEmail && <p>Email: {buyerEmail}</p>}
+                    <p className="mt-2">
+                        Requested Product: {requestProduct}
+                    </p>
+                    {requestQuantity && <p>Needed: {requestQuantity}</p>}
+                    {requestPrice && <p>Target price: {requestPrice}</p>}
+                </div>
+            </div>
+
             {/* Your contribution */}
             <div
                 className="mb-5 border-l-2 border-green-600 px-4 py-3"
@@ -54,7 +87,7 @@ export default function FarmerMatchCard({ match }: FarmerMatchCardProps) {
                     Your contribution
                 </p>
                 <p className="mt-1 text-sm" style={{ color: "var(--foreground)" }}>
-                    Listing #{match.listingId} — {match.product}
+                    Product Offered: {match.product}
                 </p>
             </div>
 

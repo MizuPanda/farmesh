@@ -6,6 +6,13 @@ type RequestsTableProps = {
 };
 
 export default function RequestsTable({ requests }: RequestsTableProps) {
+    const formatDate = (value?: string) => {
+        if (!value) return "—";
+        const parsed = new Date(value);
+        if (Number.isNaN(parsed.getTime())) return value;
+        return parsed.toLocaleDateString();
+    };
+
     return (
         <div className="overflow-x-auto border" style={{ borderColor: "var(--border-soft)" }}>
             <table className="w-full text-left text-sm">
@@ -41,7 +48,7 @@ export default function RequestsTable({ requests }: RequestsTableProps) {
                                 ${request.pricePerUnit.toFixed(2)} / {request.unit}
                             </td>
                             <td className="px-5 py-4 text-sm" style={{ color: "var(--text-subtle)" }}>
-                                {request.createdAt}
+                                {formatDate(request.createdAt)}
                             </td>
                             <td className="px-5 py-4">
                                 <StatusBadge status={request.status} />

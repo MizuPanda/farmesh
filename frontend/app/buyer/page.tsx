@@ -1,128 +1,267 @@
 "use client";
 
-import React, { useState } from "react";
-import { Plus, ShoppingCart, Sparkles, Truck } from "lucide-react";
+import React, { useCallback, useEffect, useState } from "react";
+import { Plus, ShoppingCart, Sparkles, RefreshCw } from "lucide-react";
 import AppNav from "@/components/layout/AppNav";
 import TabGroup from "@/components/layout/TabGroup";
 import PostRequestForm from "@/components/buyer/PostRequestForm";
 import RequestsTable from "@/components/buyer/RequestsTable";
 import BuyerMatchCard from "@/components/buyer/BuyerMatchCard";
-import OrderCard from "@/components/buyer/OrderCard";
-import {
-    buyerMatches,
-    buyerOrders,
-    buyerRequests,
-    buyerNotifications,
-} from "@/data/mockData";
+import LoadingOverlay from "@/components/common/LoadingOverlay";
+import { getUser } from "@/lib/auth";
+import type { Match, Request } from "@/types";
+
+type CoordinationEvent = {
+  matchId: string;
+  summary: string;
+  createdAt: string;
+};
 
 const tabs = [
-    { label: "Requests", value: "requests" },
-    { label: "Matches", value: "matches" },
-    { label: "Orders", value: "orders" },
+  { label: "Requests", value: "requests" },
+  { label: "Matches", value: "matches" },
 ];
 
 export default function BuyerDashboard() {
-    const [activeTab, setActiveTab] = useState("requests");
-    const [showPostForm, setShowPostForm] = useState(false);
+  const [activeTab, setActiveTab] = useState("requests");
+  const [showPostForm, setShowPostForm] = useState(false);
+  const [buyerId, setBuyerId] = useState<string | null>(null);
+  const [requests, setRequests] = useState<Request[]>([]);
+  const [matches, setMatches] = useState<Match[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [runningMatch, setRunningMatch] = useState(false);
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [coordinationEvents, setCoordinationEvents] = useState<CoordinationEvent[]>([]);
 
-    const openCount = buyerRequests.filter((r) => r.status === "OPEN").length;
-    const proposedCount = buyerMatches.filter((m) => m.status === "PROPOSED").length;
-    const inTransitCount = buyerOrders.filter((o) => o.status === "In Transit").length;
-    const unreadCount = buyerNotifications.filter((n) => !n.read).length;
+  const fetchDashboardData = useCallback(async (currentBuyerId: string) => {
+    const [requestsResponse, matchesResponse] = await Promise.all([
+      fetch(`/api/requests?buyerId=${currentBuyerId}`),
+      fetch(`/api/matches?buyerId=${currentBuyerId}`),
+    ]);
 
-    const statCard = (icon: React.ReactNode, label: string, value: number, sub: string) => (
-        <div
-            className="hover-lift border p-6"
-            style={{ borderColor: "var(--border-soft)", backgroundColor: "var(--surface-card)" }}
-        >
-            <div
-                className="mb-4 flex items-center gap-2 text-[11px] font-semibold tracking-[0.2em] uppercase"
-                style={{ color: "var(--text-muted)" }}
+    if (!requestsResponse.ok || !matchesResponse.ok) {
+      throw new Error("Failed to load dashboard data.");
+    }
+
+    const [requestData, matchData] = (await Promise.all([
+      requestsResponse.json(),
+      matchesResponse.json(),
+    ])) as [Request[], Match[]];
+
+    setRequests(requestData);
+    setMatches(matchData);
+  }, []);
+
+  const refreshData = useCallback(async () => {
+    if (!buyerId) return;
+    await fetchDashboardData(buyerId);
+  }, [buyerId, fetchDashboardData]);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const load = async () => {
+      try {
+        const user = await getUser();
+        if (!user || user.type !== "buyer") {
+          if (mounted) {
+            setStatusMessage("Buyer account required.");
+            setLoading(false);
+          }
+          return;
+        }
+
+        if (!mounted) return;
+        setBuyerId(user.id);
+        await fetchDashboardData(user.id);
+      } catch (error) {
+        if (mounted) {
+          setStatusMessage(
+            error instanceof Error ? error.message : "Failed to load dashboard"
+          );
+        }
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    };
+
+    void load();
+
+    return () => {
+      mounted = false;
+    };
+  }, [fetchDashboardData]);
+
+  const runMatching = async () => {
+    setRunningMatch(true);
+    setStatusMessage(null);
+    setCoordinationEvents([]);
+
+    try {
+      const response = await fetch("/api/match", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({}),
+      });
+
+      if (!response.ok) {
+        const data = (await response.json().catch(() => null)) as { error?: string } | null;
+        throw new Error(data?.error ?? "Failed to run matching");
+      }
+
+      const result = (await response.json()) as {
+        matchesFound: number;
+        message?: string;
+        coordinationEvents?: CoordinationEvent[];
+      };
+      await refreshData();
+      window.dispatchEvent(new Event("farmesh:data-updated"));
+      setCoordinationEvents(result.coordinationEvents ?? []);
+      setStatusMessage(result.message ?? `Matching completed. ${result.matchesFound} match(es) found.`);
+    } catch (error) {
+      setStatusMessage(error instanceof Error ? error.message : "Failed to run matching");
+    } finally {
+      setRunningMatch(false);
+    }
+  };
+
+  const openCount = requests.filter((request) => request.status === "OPEN").length;
+  const proposedCount = matches.filter((match) => match.status === "PROPOSED").length;
+
+  const statCard = (icon: React.ReactNode, label: string, value: number, sub: string) => (
+    <div
+      className="hover-lift border p-6"
+      style={{ borderColor: "var(--border-soft)", backgroundColor: "var(--surface-card)" }}
+    >
+      <div
+        className="mb-4 flex items-center gap-2 text-[11px] font-semibold tracking-[0.2em] uppercase"
+        style={{ color: "var(--text-muted)" }}
+      >
+        {icon}
+        {label}
+      </div>
+      <p className="font-serif text-4xl" style={{ color: "var(--foreground)" }}>
+        {value}
+      </p>
+      <p className="mt-1 text-xs" style={{ color: "var(--text-subtle)" }}>
+        {sub}
+      </p>
+    </div>
+  );
+
+  return (
+    <div className="min-h-screen" style={{ backgroundColor: "var(--background)" }}>
+      <AppNav unreadCount={0} />
+
+      <div className="mx-auto max-w-6xl px-6 py-10 lg:px-12">
+        <div className="mb-10 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between animate-fade-in">
+          <div>
+            <p className="mb-1 text-[11px] font-semibold tracking-[0.3em] uppercase text-amber-600">
+              Procurement Hub
+            </p>
+            <h1 className="font-serif text-3xl md:text-4xl" style={{ color: "var(--foreground)" }}>
+              Buyer Dashboard
+            </h1>
+            <p className="mt-2 text-sm" style={{ color: "var(--text-muted)" }}>
+              Post sourcing needs, review AI matches, and run matching on demand.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={runMatching}
+              disabled={runningMatch || loading}
+              className="flex w-fit items-center gap-2 border px-6 py-3 text-xs font-semibold tracking-[0.12em] uppercase transition-all duration-300 disabled:opacity-60"
+              style={{ borderColor: "var(--border-default)", color: "var(--text-muted)" }}
             >
-                {icon}
-                {label}
-            </div>
-            <p className="font-serif text-4xl" style={{ color: "var(--foreground)" }}>{value}</p>
-            <p className="mt-1 text-xs" style={{ color: "var(--text-subtle)" }}>{sub}</p>
+              <RefreshCw className={`h-3.5 w-3.5 ${runningMatch ? "animate-spin" : ""}`} />
+              Run Matching
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowPostForm((value) => !value)}
+              className="flex w-fit items-center gap-2 bg-amber-600 px-6 py-3 text-xs font-semibold tracking-[0.12em] uppercase text-white transition-all duration-300 hover:bg-amber-700"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Post Request
+            </button>
+          </div>
         </div>
-    );
 
-    return (
-        <div className="min-h-screen" style={{ backgroundColor: "var(--background)" }}>
-            <AppNav unreadCount={unreadCount} />
+        {statusMessage && (
+          <p className="mb-6 text-sm" style={{ color: "var(--text-muted)" }}>
+            {statusMessage}
+          </p>
+        )}
 
-            <div className="mx-auto max-w-6xl px-6 py-10 lg:px-12">
-                {/* Page header */}
-                <div className="mb-10 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between animate-fade-in">
-                    <div>
-                        <p className="mb-1 text-[11px] font-semibold tracking-[0.3em] uppercase text-amber-600">
-                            Procurement Hub
-                        </p>
-                        <h1 className="font-serif text-3xl md:text-4xl" style={{ color: "var(--foreground)" }}>
-                            Buyer Dashboard
-                        </h1>
-                        <p className="mt-2 text-sm" style={{ color: "var(--text-muted)" }}>
-                            Post sourcing needs, review local Canadian farm matches, and track your orders
-                        </p>
-                    </div>
-                    <button
-                        type="button"
-                        onClick={() => setShowPostForm((v) => !v)}
-                        className="flex w-fit items-center gap-2 bg-amber-600 px-6 py-3 text-xs font-semibold tracking-[0.12em] uppercase text-white transition-all duration-300 hover:bg-amber-700"
-                    >
-                        <Plus className="h-3.5 w-3.5" />
-                        Post Request
-                    </button>
-                </div>
-
-                {/* Stats row */}
-                <div className="mb-10 grid grid-cols-3 gap-4 stagger-children">
-                    {statCard(<ShoppingCart className="h-3.5 w-3.5" />, "Requests", openCount, "open requests")}
-                    {statCard(<Sparkles className="h-3.5 w-3.5" />, "Matches", proposedCount, "pending review")}
-                    {statCard(<Truck className="h-3.5 w-3.5" />, "In Transit", inTransitCount, "active orders")}
-                </div>
-
-                {/* Post Request form (inline) */}
-                {showPostForm && (
-                    <div className="mb-10 animate-fade-in-up">
-                        <PostRequestForm onClose={() => setShowPostForm(false)} />
-                    </div>
-                )}
-
-                {/* Tabs */}
-                <TabGroup
-                    tabs={tabs}
-                    activeTab={activeTab}
-                    onTabChange={setActiveTab}
-                    accentColor="amber"
-                />
-
-                <div className="mt-6">
-                    {activeTab === "requests" && (
-                        <RequestsTable requests={buyerRequests} />
-                    )}
-
-                    {activeTab === "matches" && (
-                        <div className="grid gap-4 stagger-children">
-                            {buyerMatches.map((match, i) => (
-                                <BuyerMatchCard
-                                    key={match.id}
-                                    match={match}
-                                    recommended={i === 0}
-                                />
-                            ))}
-                        </div>
-                    )}
-
-                    {activeTab === "orders" && (
-                        <div className="grid gap-4 stagger-children">
-                            {buyerOrders.map((order) => (
-                                <OrderCard key={order.id} order={order} />
-                            ))}
-                        </div>
-                    )}
-                </div>
+        {coordinationEvents.length > 0 && (
+          <div
+            className="mb-6 border p-4"
+            style={{ borderColor: "var(--border-soft)", backgroundColor: "var(--surface-base)" }}
+          >
+            <p className="mb-2 text-[11px] font-semibold tracking-[0.18em] uppercase text-amber-700">
+              Coordination Updates
+            </p>
+            <div className="space-y-2">
+              {coordinationEvents.map((event) => (
+                <p key={event.matchId} className="text-sm" style={{ color: "var(--text-muted)" }}>
+                  {event.summary}
+                </p>
+              ))}
             </div>
+          </div>
+        )}
+
+        <div className="mb-10 grid grid-cols-2 gap-4 stagger-children">
+          {statCard(<ShoppingCart className="h-3.5 w-3.5" />, "Requests", openCount, "open requests")}
+          {statCard(<Sparkles className="h-3.5 w-3.5" />, "Matches", proposedCount, "pending review")}
         </div>
-    );
+
+        {showPostForm && (
+          <div className="mb-10 animate-fade-in-up">
+            <PostRequestForm
+              buyerId={buyerId ?? undefined}
+              onClose={() => setShowPostForm(false)}
+              onSubmitted={refreshData}
+            />
+          </div>
+        )}
+
+        <TabGroup
+          tabs={tabs}
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          accentColor="amber"
+        />
+
+        <div className="mt-6">
+          {loading && <p style={{ color: "var(--text-muted)" }}>Loading...</p>}
+
+          {!loading && activeTab === "requests" && <RequestsTable requests={requests} />}
+
+          {!loading && activeTab === "matches" && (
+            <div className="grid gap-4 stagger-children">
+              {matches.length === 0 && (
+                <p className="text-sm" style={{ color: "var(--text-muted)" }}>
+                  No matches yet.
+                </p>
+              )}
+              {matches.map((match, index) => (
+                <BuyerMatchCard key={match.id} match={match} recommended={index === 0} />
+              ))}
+            </div>
+          )}
+
+        </div>
+      </div>
+      <LoadingOverlay
+        open={runningMatch}
+        title="Running Matching"
+        message="Normalizing open data and generating best matches."
+        accentColor="amber"
+      />
+    </div>
+  );
 }
