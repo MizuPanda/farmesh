@@ -204,6 +204,7 @@ export async function normalizeForMatching(params: {
     content: JSON.stringify(input),
     llm_provider: NORMALIZATION_PROVIDER,
     model_name: NORMALIZATION_MODEL,
+    memory: "Auto",
     stream: false,
   })) as MessageResponse;
 

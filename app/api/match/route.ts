@@ -101,6 +101,7 @@ ${JSON.stringify(normalizedRequirements, null, 2)}
       content: prompt,
       llm_provider: MATCHING_PROVIDER,
       model_name: MATCHING_MODEL,
+      memory: "Auto",
       stream: false,
     }) as MessageResponse;
 
