@@ -5,10 +5,20 @@ export type CanonicalUnit = "kg" | "piece";
 
 export type NormalizedListing = Listing & {
     normalizedProduct: string;
-    productCategory: string;
-    unitFamily: UnitFamily | null;
-    canonicalQuantity: number | null;
-    canonicalUnit: CanonicalUnit | null;
-    canonicalPricePerCanonicalUnit: number | null;
+    productCategory: ProductCategory;
+
+    originalQuantity: number;
+    originalUnit: string;
+    originalPricePerUnit: number;
+
+    canonicalQuantity: number;
+    canonicalUnit: string;
+    canonicalPricePerCanonicalUnit: number;
+
     assumptions: string[];
+
+    status: ListingStatus;
+
+    createdAt?: string;
+    expirationDate: string;
 };

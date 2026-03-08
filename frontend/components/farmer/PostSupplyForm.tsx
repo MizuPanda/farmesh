@@ -1,5 +1,10 @@
-import { useMemo, useState } from "react";
+"use client";
+
+import { useState } from "react";
 import { Sparkles } from "lucide-react";
+import { getUser } from "@/lib/auth";
+import { createListingObject } from "@/lib/listings";
+import { normalizeAndInsertListing } from "@/app/actions/listings";
 import LoadingOverlay from "@/components/common/LoadingOverlay";
 
 type PostSupplyFormProps = {
@@ -17,227 +22,183 @@ const inputStyle = {
 } as const;
 
 export default function PostSupplyForm({ vendorId, onClose, onSubmitted }: PostSupplyFormProps) {
-  const [rawInput, setRawInput] = useState("");
   const [product, setProduct] = useState("");
   const [quantity, setQuantity] = useState("");
-  const [unit, setUnit] = useState("lb");
+  const [unit, setUnit] = useState("");
   const [pricePerUnit, setPricePerUnit] = useState("");
   const [expirationDate, setExpirationDate] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [description, setDescription] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const preview = useMemo(
-    () => ({
-      product: product || "—",
-      quantity: quantity || "—",
-      unit: unit || "—",
-      pricePerUnit: Number(pricePerUnit) || 0,
-    }),
-    [product, quantity, unit, pricePerUnit]
-  );
-
-  const handleSubmit = async () => {
+  async function handleSubmit() {
     setError(null);
+    setIsSubmitting(true);
 
-    const numericQuantity = Number(quantity);
-    const numericPrice = Number(pricePerUnit);
-
-    if (!product.trim()) {
-      setError("Product is required.");
-      return;
-    }
-    if (!Number.isFinite(numericQuantity) || numericQuantity <= 0) {
-      setError("Quantity must be a positive number.");
-      return;
-    }
-    if (!Number.isFinite(numericPrice) || numericPrice < 0) {
-      setError("Price per unit must be non-negative.");
-      return;
-    }
-
-    setLoading(true);
     try {
-      const response = await fetch("/api/listings", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          vendorId,
-          rawInput,
-          product,
-          quantity: numericQuantity,
-          unit,
-          pricePerUnit: numericPrice,
-          expirationDate,
-        }),
+      const user = await getUser();
+      const resolvedVendorId = vendorId ?? user?.id;
+
+      if (!resolvedVendorId) {
+        setError("You must be logged in to post a listing.");
+        return;
+      }
+
+      const listing = createListingObject({
+        vendorId: resolvedVendorId,
+        product,
+        quantity: Number(quantity),
+        unit,
+        pricePerUnit: Number(pricePerUnit),
+        expirationDate,
+        description: description || undefined,
       });
 
-      if (!response.ok) {
-        const data = (await response.json().catch(() => null)) as { error?: string } | null;
-        throw new Error(data?.error ?? "Failed to create listing.");
+      const result = await normalizeAndInsertListing(listing);
+
+      if (!result.success) {
+        setError(result.error ?? "Failed to create listing.");
+        return;
       }
 
       window.dispatchEvent(new Event("farmesh:data-updated"));
       await onSubmitted?.();
       onClose();
-    } catch (submitError) {
-      setError(submitError instanceof Error ? submitError.message : "Failed to create listing.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "An unexpected error occurred.");
     } finally {
-      setLoading(false);
+      setIsSubmitting(false);
     }
-  };
+  }
 
   return (
     <>
       <div className="space-y-4">
-        <div
-          className="border p-6"
-          style={{ borderColor: "var(--border-soft)", backgroundColor: "var(--surface-base)" }}
-        >
-        <p className="mb-1 text-[11px] font-semibold tracking-[0.25em] uppercase text-green-700">
-          New Listing
-        </p>
-        <h3 className="font-serif mb-4 text-xl" style={{ color: "var(--foreground)" }}>
-          Post New Supply
-        </h3>
+        {/* Text Input Card */}
+        <div className="border p-6" style={{ borderColor: "var(--border-soft)", backgroundColor: "var(--surface-base)" }}>
+          <p className="mb-1 text-[11px] font-semibold tracking-[0.25em] uppercase text-green-700">
+            New Listing
+          </p>
+          <h3 className="font-serif mb-4 text-xl" style={{ color: "var(--foreground)" }}>
+            Post New Supply
+          </h3>
 
-        <textarea
-          rows={3}
-          value={rawInput}
-          onChange={(event) => setRawInput(event.target.value)}
-          placeholder="I have 60 lbs of baby greens available this week for bulk sale"
-          className="w-full resize-none border px-4 py-3 text-sm font-sans outline-none transition-colors duration-200"
-          style={{
-            borderColor: "var(--border-default)",
-            backgroundColor: "var(--surface-card)",
-            color: "var(--foreground)",
-          }}
-          onFocus={(event) => (event.currentTarget.style.borderColor = "#16a34a")}
-          onBlur={(event) => (event.currentTarget.style.borderColor = "var(--border-default)")}
-        />
+          <textarea
+            rows={3}
+            placeholder="I have 60 lbs of baby greens available this week for bulk sale"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            className="w-full resize-none border px-4 py-3 text-sm font-sans outline-none transition-colors duration-200"
+            style={{ borderColor: "var(--border-default)", backgroundColor: "var(--surface-card)", color: "var(--foreground)" }}
+            onFocus={(e) => (e.currentTarget.style.borderColor = "#16a34a")}
+            onBlur={(e) => (e.currentTarget.style.borderColor = "var(--border-default)")}
+          />
 
-        <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-5">
-          <div>
-            <label
-              className="mb-1 block text-[11px] font-semibold tracking-[0.12em] uppercase"
-              style={{ color: "var(--text-muted)" }}
-            >
-              Product
-            </label>
-            <input
-              type="text"
-              value={product}
-              onChange={(event) => setProduct(event.target.value)}
-              placeholder="e.g. Baby Greens"
-              className={inputCls}
-              style={inputStyle}
-            />
+          {/* Structured fields */}
+          <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-5">
+            <div>
+              <label className="mb-1 block text-[11px] font-semibold tracking-[0.12em] uppercase" style={{ color: "var(--text-muted)" }}>
+                Product
+              </label>
+              <input
+                type="text"
+                placeholder="e.g. Baby Greens"
+                value={product}
+                onChange={(e) => setProduct(e.target.value)}
+                className={inputCls}
+                style={inputStyle}
+                onFocus={(e) => (e.currentTarget.style.borderColor = "#16a34a")}
+                onBlur={(e) => (e.currentTarget.style.borderColor = "var(--border-default)")}
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-[11px] font-semibold tracking-[0.12em] uppercase" style={{ color: "var(--text-muted)" }}>
+                Quantity
+              </label>
+              <input
+                type="number"
+                placeholder="60"
+                value={quantity}
+                onChange={(e) => setQuantity(e.target.value)}
+                className={inputCls}
+                style={inputStyle}
+                onFocus={(e) => (e.currentTarget.style.borderColor = "#16a34a")}
+                onBlur={(e) => (e.currentTarget.style.borderColor = "var(--border-default)")}
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-[11px] font-semibold tracking-[0.12em] uppercase" style={{ color: "var(--text-muted)" }}>
+                Unit
+              </label>
+              <input
+                type="text"
+                placeholder="lb"
+                value={unit}
+                onChange={(e) => setUnit(e.target.value)}
+                className={inputCls}
+                style={inputStyle}
+                onFocus={(e) => (e.currentTarget.style.borderColor = "#16a34a")}
+                onBlur={(e) => (e.currentTarget.style.borderColor = "var(--border-default)")}
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-[11px] font-semibold tracking-[0.12em] uppercase" style={{ color: "var(--text-muted)" }}>
+                Price / unit
+              </label>
+              <input
+                type="number"
+                placeholder="4.50"
+                value={pricePerUnit}
+                onChange={(e) => setPricePerUnit(e.target.value)}
+                className={inputCls}
+                style={inputStyle}
+                onFocus={(e) => (e.currentTarget.style.borderColor = "#16a34a")}
+                onBlur={(e) => (e.currentTarget.style.borderColor = "var(--border-default)")}
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-[11px] font-semibold tracking-[0.12em] uppercase" style={{ color: "var(--text-muted)" }}>
+                Expiry Date
+              </label>
+              <input
+                type="date"
+                value={expirationDate}
+                onChange={(e) => setExpirationDate(e.target.value)}
+                className={inputCls}
+                style={inputStyle}
+                onFocus={(e) => (e.currentTarget.style.borderColor = "#16a34a")}
+                onBlur={(e) => (e.currentTarget.style.borderColor = "var(--border-default)")}
+              />
+            </div>
           </div>
 
-          <div>
-            <label
-              className="mb-1 block text-[11px] font-semibold tracking-[0.12em] uppercase"
-              style={{ color: "var(--text-muted)" }}
-            >
-              Quantity
-            </label>
-            <input
-              type="number"
-              min="0"
-              step="0.01"
-              value={quantity}
-              onChange={(event) => setQuantity(event.target.value)}
-              placeholder="60"
-              className={inputCls}
-              style={inputStyle}
-            />
-          </div>
+          {error && (
+            <p className="mt-3 text-sm text-red-600">{error}</p>
+          )}
 
-          <div>
-            <label
-              className="mb-1 block text-[11px] font-semibold tracking-[0.12em] uppercase"
-              style={{ color: "var(--text-muted)" }}
+          <div className="mt-5 flex gap-2">
+            <button
+              type="button"
+              onClick={handleSubmit}
+              disabled={isSubmitting}
+              className="bg-green-600 px-6 py-2.5 text-xs font-semibold tracking-[0.12em] uppercase text-white transition-colors duration-300 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Unit
-            </label>
-            <input
-              type="text"
-              value={unit}
-              onChange={(event) => setUnit(event.target.value)}
-              placeholder="lb"
-              className={inputCls}
-              style={inputStyle}
-            />
-          </div>
-
-          <div>
-            <label
-              className="mb-1 block text-[11px] font-semibold tracking-[0.12em] uppercase"
-              style={{ color: "var(--text-muted)" }}
+              {isSubmitting ? "Submitting…" : "Submit"}
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={isSubmitting}
+              className="border px-6 py-2.5 text-xs font-semibold tracking-[0.12em] uppercase transition-colors duration-300 disabled:opacity-50"
+              style={{ borderColor: "var(--border-default)", color: "var(--text-muted)" }}
             >
-              Price / unit
-            </label>
-            <input
-              type="number"
-              min="0"
-              step="0.01"
-              value={pricePerUnit}
-              onChange={(event) => setPricePerUnit(event.target.value)}
-              placeholder="4.50"
-              className={inputCls}
-              style={inputStyle}
-            />
-          </div>
-
-          <div>
-            <label
-              className="mb-1 block text-[11px] font-semibold tracking-[0.12em] uppercase"
-              style={{ color: "var(--text-muted)" }}
-            >
-              Expiry Date
-            </label>
-            <input
-              type="date"
-              value={expirationDate}
-              onChange={(event) => setExpirationDate(event.target.value)}
-              className={inputCls}
-              style={inputStyle}
-            />
+              Cancel
+            </button>
           </div>
         </div>
 
-        {error && <p className="mt-4 text-sm text-red-600">{error}</p>}
-
-        <div className="mt-5 flex gap-2">
-          <button
-            type="button"
-            onClick={handleSubmit}
-            disabled={loading}
-            className="bg-green-600 px-6 py-2.5 text-xs font-semibold tracking-[0.12em] uppercase text-white transition-colors duration-300 hover:bg-green-700 disabled:opacity-60"
-          >
-            {loading ? "Submitting..." : "Submit"}
-          </button>
-          <button
-            type="button"
-            onClick={onClose}
-            className="border px-6 py-2.5 text-xs font-semibold tracking-[0.12em] uppercase transition-colors duration-300"
-            style={{ borderColor: "var(--border-default)", color: "var(--text-muted)" }}
-          >
-            Cancel
-          </button>
-        </div>
-        </div>
-
-        <div
-          className="border-l-2 border-green-600 p-5"
-          style={{
-            backgroundColor: "var(--surface-base)",
-            borderTopColor: "transparent",
-            borderRightColor: "var(--border-soft)",
-            borderBottomColor: "var(--border-soft)",
-          }}
-        >
+        {/* AI Parsed Preview */}
+        <div className="border-l-2 border-green-600 p-5" style={{ backgroundColor: "var(--surface-base)", borderTopColor: "transparent", borderRightColor: "var(--border-soft)", borderBottomColor: "var(--border-soft)" }}>
           <div className="mb-4 flex items-center gap-2">
             <Sparkles className="h-3.5 w-3.5 text-green-600" />
             <p className="text-[11px] font-semibold tracking-[0.2em] uppercase text-green-700">
@@ -246,15 +207,13 @@ export default function PostSupplyForm({ vendorId, onClose, onSubmitted }: PostS
           </div>
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
             {[
-              { label: "Product", value: preview.product },
-              { label: "Quantity", value: `${preview.quantity} ${preview.unit}` },
-              { label: "Unit", value: preview.unit },
-              { label: "Price / unit", value: `$${preview.pricePerUnit.toFixed(2)}` },
+              { label: "Product", value: product || "—" },
+              { label: "Quantity", value: quantity ? `${quantity} ${unit}` : "—" },
+              { label: "Unit", value: unit || "—" },
+              { label: "Price / unit", value: pricePerUnit ? `$${Number(pricePerUnit).toFixed(2)}` : "—" },
             ].map(({ label, value }) => (
               <div key={label}>
-                <p className="text-[11px] font-semibold tracking-[0.12em] uppercase text-green-700">
-                  {label}
-                </p>
+                <p className="text-[11px] font-semibold tracking-[0.12em] uppercase text-green-700">{label}</p>
                 <p className="mt-0.5 text-sm font-medium text-green-900">{value}</p>
               </div>
             ))}
@@ -262,7 +221,7 @@ export default function PostSupplyForm({ vendorId, onClose, onSubmitted }: PostS
         </div>
       </div>
       <LoadingOverlay
-        open={loading}
+        open={isSubmitting}
         title="Creating Listing"
         message="Normalizing your listing and checking for matches."
         accentColor="green"
