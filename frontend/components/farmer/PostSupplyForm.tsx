@@ -1,6 +1,6 @@
-import { useMemo, useState } from "react";
-import { Sparkles } from "lucide-react";
+import { useState } from "react";
 import LoadingOverlay from "@/components/common/LoadingOverlay";
+import DatePicker from "@/components/ui/date-picker";
 
 type PostSupplyFormProps = {
   vendorId?: string;
@@ -25,16 +25,6 @@ export default function PostSupplyForm({ vendorId, onClose, onSubmitted }: PostS
   const [expirationDate, setExpirationDate] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const preview = useMemo(
-    () => ({
-      product: product || "—",
-      quantity: quantity || "—",
-      unit: unit || "—",
-      pricePerUnit: Number(pricePerUnit) || 0,
-    }),
-    [product, quantity, unit, pricePerUnit]
-  );
 
   const handleSubmit = async () => {
     setError(null);
@@ -90,11 +80,10 @@ export default function PostSupplyForm({ vendorId, onClose, onSubmitted }: PostS
 
   return (
     <>
-      <div className="space-y-4">
-        <div
-          className="border p-6"
-          style={{ borderColor: "var(--border-soft)", backgroundColor: "var(--surface-base)" }}
-        >
+      <div
+        className="border p-6"
+        style={{ borderColor: "var(--border-soft)", backgroundColor: "var(--surface-base)" }}
+      >
         <p className="mb-1 text-[11px] font-semibold tracking-[0.25em] uppercase text-green-700">
           New Listing
         </p>
@@ -197,12 +186,11 @@ export default function PostSupplyForm({ vendorId, onClose, onSubmitted }: PostS
             >
               Expiry Date
             </label>
-            <input
-              type="date"
+            <DatePicker
               value={expirationDate}
-              onChange={(event) => setExpirationDate(event.target.value)}
-              className={inputCls}
-              style={inputStyle}
+              onChange={setExpirationDate}
+              accent="green"
+              disabled={loading}
             />
           </div>
         </div>
@@ -226,39 +214,6 @@ export default function PostSupplyForm({ vendorId, onClose, onSubmitted }: PostS
           >
             Cancel
           </button>
-        </div>
-        </div>
-
-        <div
-          className="border-l-2 border-green-600 p-5"
-          style={{
-            backgroundColor: "var(--surface-base)",
-            borderTopColor: "transparent",
-            borderRightColor: "var(--border-soft)",
-            borderBottomColor: "var(--border-soft)",
-          }}
-        >
-          <div className="mb-4 flex items-center gap-2">
-            <Sparkles className="h-3.5 w-3.5 text-green-600" />
-            <p className="text-[11px] font-semibold tracking-[0.2em] uppercase text-green-700">
-              AI Parsed Preview
-            </p>
-          </div>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-            {[
-              { label: "Product", value: preview.product },
-              { label: "Quantity", value: `${preview.quantity} ${preview.unit}` },
-              { label: "Unit", value: preview.unit },
-              { label: "Price / unit", value: `$${preview.pricePerUnit.toFixed(2)}` },
-            ].map(({ label, value }) => (
-              <div key={label}>
-                <p className="text-[11px] font-semibold tracking-[0.12em] uppercase text-green-700">
-                  {label}
-                </p>
-                <p className="mt-0.5 text-sm font-medium text-green-900">{value}</p>
-              </div>
-            ))}
-          </div>
         </div>
       </div>
       <LoadingOverlay
