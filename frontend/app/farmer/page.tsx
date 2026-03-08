@@ -8,7 +8,7 @@ import PostSupplyForm from "@/components/farmer/PostSupplyForm";
 import ListingsTable from "@/components/farmer/ListingsTable";
 import FarmerMatchCard from "@/components/farmer/FarmerMatchCard";
 import { farmerNotifications } from "@/data/mockData";
-import { getUser } from "@/lib/auth";
+import { getUser } from "@backend/auth/getUser";
 import type { Listing, Match } from "@/types";
 
 const tabs = [

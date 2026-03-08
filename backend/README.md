@@ -1,13 +1,10 @@
 # Backend
 
-This folder is reserved for backend services once you split business logic out of Next.js server actions.
+This folder now contains backend-oriented modules used by the Next.js app:
 
-Recommended starter structure:
+- `src/auth/getUser.ts` auth/profile fetch logic
+- `src/agents/coordinationAgent.ts` match coordination agent logic
+- `src/agents/normalizationAgent.ts` listing/request normalization agent logic
+- `data/` legacy local store snapshots
 
-- `src/api/` route handlers or controllers
-- `src/services/` business logic
-- `src/db/` Supabase/Admin data access
-- `src/middleware/` auth and request guards
-- `src/types/` backend-only types
-
-For now, your backend logic still lives in `frontend/app/actions` and `frontend/lib/supabase`.
+The current app still executes these modules through `frontend` API routes/components.

@@ -9,7 +9,7 @@ import RequestsTable from "@/components/buyer/RequestsTable";
 import BuyerMatchCard from "@/components/buyer/BuyerMatchCard";
 import OrderCard from "@/components/buyer/OrderCard";
 import { buyerOrders, buyerNotifications } from "@/data/mockData";
-import { getUser } from "@/lib/auth";
+import { getUser } from "@backend/auth/getUser";
 import type { Match, Request } from "@/types";
 
 const tabs = [

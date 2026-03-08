@@ -10,4 +10,12 @@ export type Request = {
     unit: string;
     status: RequestStatus;
     createdAt: string;
+    neededDate?: string | null;
+    normalizedProduct?: string | null;
+    productCategory?: string | null;
+    unitFamily?: "weight" | "count" | null;
+    canonicalQuantity?: number | null;
+    canonicalUnit?: "kg" | "piece" | null;
+    canonicalPricePerCanonicalUnit?: number | null;
+    assumptions?: string[] | null;
 };

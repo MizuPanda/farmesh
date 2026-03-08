@@ -11,4 +11,11 @@ export type Listing = {
     status: ListingStatus;
     createdAt: string;
     expirationDate: string;
+    normalizedProduct?: string | null;
+    productCategory?: string | null;
+    unitFamily?: "weight" | "count" | null;
+    canonicalQuantity?: number | null;
+    canonicalUnit?: "kg" | "piece" | null;
+    canonicalPricePerCanonicalUnit?: number | null;
+    assumptions?: string[] | null;
 };

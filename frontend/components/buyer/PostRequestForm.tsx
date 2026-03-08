@@ -104,7 +104,7 @@ export default function PostRequestForm({ buyerId, onClose, onSubmitted }: PostR
               { label: 'Quantity needed', type: 'number', placeholder: '100', value: quantity, onChange: setQuantity },
               { label: 'Unit', type: 'text', placeholder: 'lb', value: unit, onChange: setUnit },
               { label: 'Max price / unit', type: 'number', placeholder: '5.20', value: pricePerUnit, onChange: setPricePerUnit },
-              { label: 'Required by', type: 'text', placeholder: 'e.g. Friday', value: requiredBy, onChange: setRequiredBy },
+              { label: 'Needed date', type: 'date', placeholder: '', value: requiredBy, onChange: setRequiredBy },
             ].map(({ label, type, placeholder, value, onChange }) => (
             <div key={label}>
               <label className="mb-1 block text-[11px] font-semibold tracking-[0.12em] uppercase" style={{ color: 'var(--text-muted)' }}>
@@ -178,7 +178,7 @@ export default function PostRequestForm({ buyerId, onClose, onSubmitted }: PostR
               { label: 'Product', value: product || '—' },
               { label: 'Quantity', value: quantity ? `${quantity} ${unit}` : '—' },
               { label: 'Max price', value: pricePerUnit ? `$${Number(pricePerUnit).toFixed(2)} / ${unit}` : '—' },
-              { label: 'Required by', value: requiredBy || '—' },
+              { label: 'Needed date', value: requiredBy || '—' },
               { label: 'Substitutions', value: allowSubstitutions ? 'Allowed' : 'Not allowed' },
             ].map(({ label, value }) => (
             <div key={label}>

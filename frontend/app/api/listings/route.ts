@@ -17,15 +17,27 @@ export async function POST(req: NextRequest) {
   if (typeof body.vendorId !== 'string' || body.vendorId.length === 0) {
     return NextResponse.json({ error: 'vendorId is required' }, { status: 400 });
   }
+  if (typeof body.product !== 'string' || body.product.trim().length === 0) {
+    return NextResponse.json({ error: 'product is required' }, { status: 400 });
+  }
+
+  const quantity = Number(body.quantity);
+  const pricePerUnit = Number(body.pricePerUnit);
+  if (!Number.isFinite(quantity) || quantity <= 0) {
+    return NextResponse.json({ error: 'quantity must be a positive number' }, { status: 400 });
+  }
+  if (!Number.isFinite(pricePerUnit) || pricePerUnit < 0) {
+    return NextResponse.json({ error: 'pricePerUnit must be a non-negative number' }, { status: 400 });
+  }
 
   const listing: Listing = {
     id: crypto.randomUUID(),
     vendorId: body.vendorId,
     rawInput: body.rawInput ?? '',
-    product: body.product,
-    quantity: Number(body.quantity),
+    product: body.product.trim(),
+    quantity,
     unit: body.unit ?? 'lb',
-    pricePerUnit: Number(body.pricePerUnit),
+    pricePerUnit,
     status: 'OPEN',
     createdAt: new Date().toISOString(),
     expirationDate: body.expirationDate

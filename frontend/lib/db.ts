@@ -5,25 +5,38 @@ type ListingRow = {
   id: string;
   vendor_id: string;
   raw_input: string;
-  product: string;
-  price_per_unit: number;
-  quantity: number;
-  unit: string;
+  original_product: string;
+  original_price_per_unit: number;
+  original_quantity: number;
+  original_unit: string;
   status: Listing['status'];
   created_at: string;
   expiration_date: string;
+  normalized_product: string | null;
+  product_category: string | null;
+  canonical_quantity: number | null;
+  canonical_unit: string | null;
+  canonical_price_per_canonical_unit: number | null;
+  assumptions: string[] | null;
 };
 
 type RequestRow = {
   id: string;
   buyer_id: string;
   raw_input: string;
-  product: string;
-  price_per_unit: number;
-  quantity: number;
-  unit: string;
+  original_product: string;
+  original_price_per_unit: number;
+  original_quantity: number;
+  original_unit: string;
   status: Request['status'];
   created_at: string;
+  normalized_product: string | null;
+  product_category: string | null;
+  canonical_quantity: number | null;
+  canonical_unit: string | null;
+  canonical_price_per_canonical_unit: number | null;
+  needed_date: string | null;
+  assumptions: string[] | null;
 };
 
 type MatchRow = {
@@ -36,6 +49,56 @@ type MatchRow = {
   status: Match['status'];
   created_at: string;
 };
+
+type NormalizationFields = {
+  normalizedProduct?: string | null;
+  productCategory?: string | null;
+  unitFamily?: 'weight' | 'count' | null;
+  canonicalQuantity?: number | null;
+  canonicalUnit?: 'kg' | 'piece' | null;
+  canonicalPricePerCanonicalUnit?: number | null;
+  assumptions?: string[] | null;
+};
+
+const LISTING_SELECT = [
+  'id',
+  'vendor_id',
+  'raw_input',
+  'original_product',
+  'original_price_per_unit',
+  'original_quantity',
+  'original_unit',
+  'status',
+  'created_at',
+  'expiration_date',
+  'normalized_product',
+  'product_category',
+  'canonical_quantity',
+  'canonical_unit',
+  'canonical_price_per_canonical_unit',
+  'assumptions',
+].join(',');
+
+const REQUEST_SELECT = [
+  'id',
+  'buyer_id',
+  'raw_input',
+  'original_product',
+  'original_price_per_unit',
+  'original_quantity',
+  'original_unit',
+  'status',
+  'created_at',
+  'normalized_product',
+  'product_category',
+  'canonical_quantity',
+  'canonical_unit',
+  'canonical_price_per_canonical_unit',
+  'needed_date',
+  'assumptions',
+].join(',');
+
+const MATCH_SELECT = 'id,listing_id,request_id,score,product,reason,status,created_at';
 
 function getSupabaseAdminClient() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -53,18 +116,38 @@ function getSupabaseAdminClient() {
   });
 }
 
+function toNullableNumber(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value === 'string' && value.trim().length > 0) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+}
+
+function toDbAssumptions(value: unknown): string[] | null {
+  if (!Array.isArray(value)) return null;
+  return value.filter((entry): entry is string => typeof entry === 'string');
+}
+
 function mapListing(row: ListingRow): Listing {
   return {
     id: row.id,
     vendorId: row.vendor_id,
     rawInput: row.raw_input,
-    product: row.product,
-    pricePerUnit: Number(row.price_per_unit),
-    quantity: Number(row.quantity),
-    unit: row.unit,
+    product: row.original_product,
+    pricePerUnit: Number(row.original_price_per_unit),
+    quantity: Number(row.original_quantity),
+    unit: row.original_unit,
     status: row.status,
     createdAt: row.created_at,
     expirationDate: row.expiration_date,
+    normalizedProduct: row.normalized_product,
+    productCategory: row.product_category,
+    canonicalQuantity: toNullableNumber(row.canonical_quantity),
+    canonicalUnit: (row.canonical_unit as Listing['canonicalUnit']) ?? null,
+    canonicalPricePerCanonicalUnit: toNullableNumber(row.canonical_price_per_canonical_unit),
+    assumptions: row.assumptions,
   };
 }
 
@@ -73,12 +156,19 @@ function mapRequest(row: RequestRow): Request {
     id: row.id,
     buyerId: row.buyer_id,
     rawInput: row.raw_input,
-    product: row.product,
-    pricePerUnit: Number(row.price_per_unit),
-    quantity: Number(row.quantity),
-    unit: row.unit,
+    product: row.original_product,
+    pricePerUnit: Number(row.original_price_per_unit),
+    quantity: Number(row.original_quantity),
+    unit: row.original_unit,
     status: row.status,
     createdAt: row.created_at,
+    neededDate: row.needed_date,
+    normalizedProduct: row.normalized_product,
+    productCategory: row.product_category,
+    canonicalQuantity: toNullableNumber(row.canonical_quantity),
+    canonicalUnit: (row.canonical_unit as Request['canonicalUnit']) ?? null,
+    canonicalPricePerCanonicalUnit: toNullableNumber(row.canonical_price_per_canonical_unit),
+    assumptions: row.assumptions,
   };
 }
 
@@ -95,27 +185,38 @@ function mapMatch(row: MatchRow): Match {
   };
 }
 
+function normalizationToDbColumns(fields: NormalizationFields) {
+  return {
+    normalized_product: fields.normalizedProduct ?? null,
+    product_category: fields.productCategory ?? null,
+    canonical_quantity: toNullableNumber(fields.canonicalQuantity),
+    canonical_unit: fields.canonicalUnit ?? null,
+    canonical_price_per_canonical_unit: toNullableNumber(fields.canonicalPricePerCanonicalUnit),
+    assumptions: toDbAssumptions(fields.assumptions),
+  };
+}
+
 export async function getListings(): Promise<Listing[]> {
   const supabase = getSupabaseAdminClient();
   const { data, error } = await supabase
     .from('listings')
-    .select('id,vendor_id,raw_input,product,price_per_unit,quantity,unit,status,created_at,expiration_date')
+    .select(LISTING_SELECT)
     .order('created_at', { ascending: false });
 
   if (error) throw new Error(`Failed to fetch listings: ${error.message}`);
-  return ((data ?? []) as ListingRow[]).map(mapListing);
+  return ((data ?? []) as unknown as ListingRow[]).map(mapListing);
 }
 
 export async function getListingsByVendor(vendorId: string): Promise<Listing[]> {
   const supabase = getSupabaseAdminClient();
   const { data, error } = await supabase
     .from('listings')
-    .select('id,vendor_id,raw_input,product,price_per_unit,quantity,unit,status,created_at,expiration_date')
+    .select(LISTING_SELECT)
     .eq('vendor_id', vendorId)
     .order('created_at', { ascending: false });
 
   if (error) throw new Error(`Failed to fetch vendor listings: ${error.message}`);
-  return ((data ?? []) as ListingRow[]).map(mapListing);
+  return ((data ?? []) as unknown as ListingRow[]).map(mapListing);
 }
 
 export async function insertListing(listing: Listing): Promise<Listing> {
@@ -126,19 +227,20 @@ export async function insertListing(listing: Listing): Promise<Listing> {
       id: listing.id,
       vendor_id: listing.vendorId,
       raw_input: listing.rawInput,
-      product: listing.product,
-      price_per_unit: listing.pricePerUnit,
-      quantity: listing.quantity,
-      unit: listing.unit,
+      original_product: listing.product,
+      original_price_per_unit: listing.pricePerUnit,
+      original_quantity: listing.quantity,
+      original_unit: listing.unit,
       status: listing.status,
       created_at: listing.createdAt,
       expiration_date: listing.expirationDate,
+      ...normalizationToDbColumns(listing),
     })
-    .select('id,vendor_id,raw_input,product,price_per_unit,quantity,unit,status,created_at,expiration_date')
+    .select(LISTING_SELECT)
     .single();
 
   if (error) throw new Error(`Failed to insert listing: ${error.message}`);
-  return mapListing(data as ListingRow);
+  return mapListing(data as unknown as ListingRow);
 }
 
 export async function updateListingStatus(id: string, status: Listing['status']): Promise<void> {
@@ -151,27 +253,37 @@ export async function updateListingStatus(id: string, status: Listing['status'])
   if (error) throw new Error(`Failed to update listing status: ${error.message}`);
 }
 
+export async function updateListingNormalization(id: string, fields: NormalizationFields): Promise<void> {
+  const supabase = getSupabaseAdminClient();
+  const { error } = await supabase
+    .from('listings')
+    .update(normalizationToDbColumns(fields))
+    .eq('id', id);
+
+  if (error) throw new Error(`Failed to update listing normalization: ${error.message}`);
+}
+
 export async function getRequests(): Promise<Request[]> {
   const supabase = getSupabaseAdminClient();
   const { data, error } = await supabase
     .from('requests')
-    .select('id,buyer_id,raw_input,product,price_per_unit,quantity,unit,status,created_at')
+    .select(REQUEST_SELECT)
     .order('created_at', { ascending: false });
 
   if (error) throw new Error(`Failed to fetch requests: ${error.message}`);
-  return ((data ?? []) as RequestRow[]).map(mapRequest);
+  return ((data ?? []) as unknown as RequestRow[]).map(mapRequest);
 }
 
 export async function getRequestsByBuyer(buyerId: string): Promise<Request[]> {
   const supabase = getSupabaseAdminClient();
   const { data, error } = await supabase
     .from('requests')
-    .select('id,buyer_id,raw_input,product,price_per_unit,quantity,unit,status,created_at')
+    .select(REQUEST_SELECT)
     .eq('buyer_id', buyerId)
     .order('created_at', { ascending: false });
 
   if (error) throw new Error(`Failed to fetch buyer requests: ${error.message}`);
-  return ((data ?? []) as RequestRow[]).map(mapRequest);
+  return ((data ?? []) as unknown as RequestRow[]).map(mapRequest);
 }
 
 export async function insertRequest(request: Request): Promise<Request> {
@@ -182,18 +294,20 @@ export async function insertRequest(request: Request): Promise<Request> {
       id: request.id,
       buyer_id: request.buyerId,
       raw_input: request.rawInput,
-      product: request.product,
-      price_per_unit: request.pricePerUnit,
-      quantity: request.quantity,
-      unit: request.unit,
+      original_product: request.product,
+      original_price_per_unit: request.pricePerUnit,
+      original_quantity: request.quantity,
+      original_unit: request.unit,
       status: request.status,
       created_at: request.createdAt,
+      needed_date: request.neededDate ?? null,
+      ...normalizationToDbColumns(request),
     })
-    .select('id,buyer_id,raw_input,product,price_per_unit,quantity,unit,status,created_at')
+    .select(REQUEST_SELECT)
     .single();
 
   if (error) throw new Error(`Failed to insert request: ${error.message}`);
-  return mapRequest(data as RequestRow);
+  return mapRequest(data as unknown as RequestRow);
 }
 
 export async function updateRequestStatus(id: string, status: Request['status']): Promise<void> {
@@ -206,11 +320,21 @@ export async function updateRequestStatus(id: string, status: Request['status'])
   if (error) throw new Error(`Failed to update request status: ${error.message}`);
 }
 
+export async function updateRequestNormalization(id: string, fields: NormalizationFields): Promise<void> {
+  const supabase = getSupabaseAdminClient();
+  const { error } = await supabase
+    .from('requests')
+    .update(normalizationToDbColumns(fields))
+    .eq('id', id);
+
+  if (error) throw new Error(`Failed to update request normalization: ${error.message}`);
+}
+
 export async function getMatches(): Promise<Match[]> {
   const supabase = getSupabaseAdminClient();
   const { data, error } = await supabase
     .from('matches')
-    .select('id,listing_id,request_id,score,product,reason,status,created_at')
+    .select(MATCH_SELECT)
     .order('created_at', { ascending: false });
 
   if (error) throw new Error(`Failed to fetch matches: ${error.message}`);
@@ -232,7 +356,7 @@ export async function getMatchesByVendor(vendorId: string): Promise<Match[]> {
 
   const { data, error } = await supabase
     .from('matches')
-    .select('id,listing_id,request_id,score,product,reason,status,created_at')
+    .select(MATCH_SELECT)
     .in('listing_id', listingIds)
     .order('created_at', { ascending: false });
 
@@ -255,7 +379,7 @@ export async function getMatchesByBuyer(buyerId: string): Promise<Match[]> {
 
   const { data, error } = await supabase
     .from('matches')
-    .select('id,listing_id,request_id,score,product,reason,status,created_at')
+    .select(MATCH_SELECT)
     .in('request_id', requestIds)
     .order('created_at', { ascending: false });
 
@@ -277,7 +401,7 @@ export async function insertMatch(match: Match): Promise<Match> {
       status: match.status,
       created_at: match.createdAt,
     })
-    .select('id,listing_id,request_id,score,product,reason,status,created_at')
+    .select(MATCH_SELECT)
     .single();
 
   if (error) throw new Error(`Failed to insert match: ${error.message}`);

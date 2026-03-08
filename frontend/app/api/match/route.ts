@@ -1,8 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { BackboardClient, type MessageResponse } from 'backboard-sdk';
-import { handleProposedMatch } from '@/lib/coordinationAgent';
-import { getListings, getRequests } from '@/lib/db';
-import type { Listing, Match, Request } from '@/types';
+import { handleProposedMatch } from '@backend/agents/coordinationAgent';
+import { normalizeForMatching } from '@backend/agents/normalizationAgent';
+import {
+  getListings,
+  getRequests,
+  updateListingNormalization,
+  updateRequestNormalization,
+} from '@/lib/db';
+import type { Listing, Match, Request, NormalizedListing, NormalizedRequest } from '@/types';
 
 /**
  * MODEL SELECTION NOTE:
@@ -203,9 +209,53 @@ function pairKey(listingId: string, requestId: string): string {
   return `${listingId}::${requestId}`;
 }
 
+function productKey(item: { product: string; normalizedProduct?: string | null }): string {
+  const normalized = item.normalizedProduct;
+  return typeof normalized === 'string' && normalized.trim().length > 0
+    ? normalized
+    : item.product;
+}
+
+function getCanonicalComparable(
+  item: {
+    quantity: number;
+    unit: string;
+    pricePerUnit: number;
+    canonicalQuantity?: number | null;
+    canonicalUnit?: string | null;
+    canonicalPricePerCanonicalUnit?: number | null;
+  }
+): {
+  quantity: number;
+  unit: string;
+  pricePerUnit: number;
+} | null {
+  const canonicalQuantity = toFiniteNumber(item.canonicalQuantity);
+  const canonicalPrice = toFiniteNumber(item.canonicalPricePerCanonicalUnit);
+  const canonicalUnit = typeof item.canonicalUnit === 'string' ? item.canonicalUnit : null;
+
+  if (canonicalQuantity !== null && canonicalPrice !== null && canonicalUnit) {
+    return {
+      quantity: canonicalQuantity,
+      unit: canonicalUnit,
+      pricePerUnit: canonicalPrice,
+    };
+  }
+
+  if (!Number.isFinite(item.quantity) || !Number.isFinite(item.pricePerUnit)) {
+    return null;
+  }
+
+  return {
+    quantity: item.quantity,
+    unit: item.unit,
+    pricePerUnit: item.pricePerUnit,
+  };
+}
+
 async function runDeterministicFallback(
-  listings: Listing[],
-  requirements: Request[],
+  listings: NormalizedListing[],
+  requirements: NormalizedRequest[],
   seenPairs: Set<string>
 ): Promise<Match[]> {
   const fallbackMatches: Match[] = [];
@@ -215,14 +265,12 @@ async function runDeterministicFallback(
   for (const request of requirements) {
     if (usedRequests.has(request.id)) continue;
 
-    const requestQuantity = Number(request.quantity);
-    const requestPricePerUnit = Number(request.pricePerUnit);
-    if (!Number.isFinite(requestQuantity) || requestQuantity <= 0) continue;
-    if (!Number.isFinite(requestPricePerUnit) || requestPricePerUnit < 0) continue;
+    const requestComparable = getCanonicalComparable(request);
+    if (!requestComparable || requestComparable.quantity <= 0 || requestComparable.pricePerUnit < 0) continue;
 
     let bestCandidate:
       | {
-          listing: Listing;
+          listing: NormalizedListing;
           score: number;
           matchedQuantity: number;
           reason: string;
@@ -233,17 +281,28 @@ async function runDeterministicFallback(
       if (usedListings.has(listing.id)) continue;
       if (seenPairs.has(pairKey(listing.id, request.id))) continue;
 
-      const product = evaluateProductCompatibility(listing.product, request.product);
+      const product = evaluateProductCompatibility(productKey(listing), productKey(request));
       if (!product.compatible) continue;
 
-      const listingQuantityInRequestUnit = convertQuantity(listing.quantity, listing.unit, request.unit);
-      const listingPriceInRequestUnit = convertPricePerUnit(listing.pricePerUnit, listing.unit, request.unit);
+      const listingComparable = getCanonicalComparable(listing);
+      if (!listingComparable) continue;
+
+      const listingQuantityInRequestUnit = convertQuantity(
+        listingComparable.quantity,
+        listingComparable.unit,
+        requestComparable.unit
+      );
+      const listingPriceInRequestUnit = convertPricePerUnit(
+        listingComparable.pricePerUnit,
+        listingComparable.unit,
+        requestComparable.unit
+      );
       if (listingQuantityInRequestUnit === null || listingPriceInRequestUnit === null) continue;
 
-      const quantityCoverage = listingQuantityInRequestUnit / requestQuantity;
+      const quantityCoverage = listingQuantityInRequestUnit / requestComparable.quantity;
       if (quantityCoverage < 0.3) continue;
 
-      if (listingPriceInRequestUnit > requestPricePerUnit * 1.2) continue;
+      if (listingPriceInRequestUnit > requestComparable.pricePerUnit * 1.2) continue;
 
       const productScore = product.exact
         ? 100
@@ -253,16 +312,16 @@ async function runDeterministicFallback(
       const quantityScore = Math.min(100, quantityCoverage * 100);
 
       let priceScore = 100;
-      if (requestPricePerUnit > 0 && listingPriceInRequestUnit > requestPricePerUnit) {
-        const overBudgetRatio = (listingPriceInRequestUnit / requestPricePerUnit) - 1;
+      if (requestComparable.pricePerUnit > 0 && listingPriceInRequestUnit > requestComparable.pricePerUnit) {
+        const overBudgetRatio = (listingPriceInRequestUnit / requestComparable.pricePerUnit) - 1;
         priceScore = Math.max(70, 100 - (overBudgetRatio / 0.2) * 30);
       }
 
       const score = Number((productScore * 0.45 + quantityScore * 0.35 + priceScore * 0.2).toFixed(2));
       if (score < 70) continue;
 
-      const matchedQuantity = Number(Math.min(listingQuantityInRequestUnit, requestQuantity).toFixed(2));
-      const reason = `${listing.product} fits ${request.product} with ${Math.round(quantityCoverage * 100)}% quantity coverage at ${listingPriceInRequestUnit.toFixed(2)} per ${request.unit}.`;
+      const matchedQuantity = Number(Math.min(listingQuantityInRequestUnit, requestComparable.quantity).toFixed(2));
+      const reason = `${productKey(listing)} fits ${productKey(request)} with ${Math.round(quantityCoverage * 100)}% quantity coverage at ${listingPriceInRequestUnit.toFixed(2)} per ${requestComparable.unit}.`;
 
       if (!bestCandidate || score > bestCandidate.score) {
         bestCandidate = {
@@ -281,7 +340,7 @@ async function runDeterministicFallback(
       buyerId: request.buyerId,
       listingId: bestCandidate.listing.id,
       requestId: request.id,
-      product: bestCandidate.listing.product,
+      product: bestCandidate.listing.normalizedProduct ?? bestCandidate.listing.product,
       quantity: bestCandidate.matchedQuantity,
       score: bestCandidate.score,
       reason: bestCandidate.reason,
@@ -302,7 +361,10 @@ export async function POST(req: NextRequest) {
     console.log('[MatchingAgent] POST /api/match called');
 
     // Allow caller to override listings/requirements, or pull live from DB
-    const body = await req.json().catch(() => ({}));
+    const body = (await req.json().catch(() => ({}))) as {
+      listings?: Listing[];
+      requirements?: Request[];
+    };
     const listings = body.listings ?? (await getListings()).filter((l) => l.status === 'OPEN');
     const requirements = body.requirements ?? (await getRequests()).filter((r) => r.status === 'OPEN');
 
@@ -311,6 +373,64 @@ export async function POST(req: NextRequest) {
     if (listings.length === 0 || requirements.length === 0) {
       console.log('[MatchingAgent] Early exit — no open listings or requests');
       return NextResponse.json({ success: false, message: 'No open listings or requests to match.' });
+    }
+
+    const apiKey = process.env.BACKBOARD_API_KEY;
+    let normalizedListings: NormalizedListing[] = listings.map((listing) => ({
+      ...listing,
+      normalizedProduct: listing.normalizedProduct ?? listing.product,
+      productCategory: listing.productCategory ?? '',
+      unitFamily: listing.unitFamily ?? null,
+      canonicalQuantity: listing.canonicalQuantity ?? null,
+      canonicalUnit: listing.canonicalUnit ?? null,
+      canonicalPricePerCanonicalUnit: listing.canonicalPricePerCanonicalUnit ?? null,
+      assumptions: listing.assumptions ?? [],
+    }));
+    let normalizedRequirements: NormalizedRequest[] = requirements.map((request) => ({
+      ...request,
+      normalizedProduct: request.normalizedProduct ?? request.product,
+      productCategory: request.productCategory ?? '',
+      unitFamily: request.unitFamily ?? null,
+      canonicalQuantity: request.canonicalQuantity ?? null,
+      canonicalUnit: request.canonicalUnit ?? null,
+      canonicalPricePerCanonicalUnit: request.canonicalPricePerCanonicalUnit ?? null,
+      assumptions: request.assumptions ?? [],
+    }));
+
+    let normalizationError: string | null = null;
+    if (apiKey) {
+      try {
+        const normalized = await normalizeForMatching({
+          listings,
+          requests: requirements,
+        });
+        normalizedListings = normalized.listings;
+        normalizedRequirements = normalized.requests;
+
+        await Promise.allSettled([
+          ...normalizedListings.map((listing) => updateListingNormalization(listing.id, {
+            normalizedProduct: listing.normalizedProduct,
+            productCategory: listing.productCategory,
+            unitFamily: listing.unitFamily,
+            canonicalQuantity: listing.canonicalQuantity,
+            canonicalUnit: listing.canonicalUnit,
+            canonicalPricePerCanonicalUnit: listing.canonicalPricePerCanonicalUnit,
+            assumptions: listing.assumptions,
+          })),
+          ...normalizedRequirements.map((request) => updateRequestNormalization(request.id, {
+            normalizedProduct: request.normalizedProduct,
+            productCategory: request.productCategory,
+            unitFamily: request.unitFamily,
+            canonicalQuantity: request.canonicalQuantity,
+            canonicalUnit: request.canonicalUnit,
+            canonicalPricePerCanonicalUnit: request.canonicalPricePerCanonicalUnit,
+            assumptions: request.assumptions,
+          })),
+        ]);
+      } catch (error) {
+        normalizationError = error instanceof Error ? error.message : 'Normalization failed';
+        console.warn('[MatchingAgent] Normalization failed, continuing with source values:', error);
+      }
     }
 
     const proposedMatches: Match[] = [];
@@ -333,7 +453,6 @@ export async function POST(req: NextRequest) {
       return true;
     };
 
-    const apiKey = process.env.BACKBOARD_API_KEY;
     if (apiKey) {
       const client = new BackboardClient({ apiKey });
 
@@ -384,10 +503,10 @@ Your job:
       try {
         const prompt = `
 STANDARDIZED LISTINGS (Vendor Supply):
-${JSON.stringify(listings, null, 2)}
+${JSON.stringify(normalizedListings, null, 2)}
 
 WEIGHTED REQUIREMENTS (Buyer Demand):
-${JSON.stringify(requirements, null, 2)}
+${JSON.stringify(normalizedRequirements, null, 2)}
 `;
 
         response = await client.addMessage(thread.threadId, {
@@ -469,7 +588,7 @@ ${JSON.stringify(requirements, null, 2)}
     }
 
     if (proposedMatches.length === 0) {
-      const deterministicMatches = await runDeterministicFallback(listings, requirements, seenPairs);
+      const deterministicMatches = await runDeterministicFallback(normalizedListings, normalizedRequirements, seenPairs);
       if (deterministicMatches.length > 0) {
         proposedMatches.push(...deterministicMatches);
         usedDeterministicFallback = true;
@@ -488,6 +607,7 @@ ${JSON.stringify(requirements, null, 2)}
         hadToolCalls: !!(response?.toolCalls?.length),
         usedTextFallback,
         usedDeterministicFallback,
+        normalizationError,
         llmError,
       }
     });

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Sprout, Bell, LogOut } from "lucide-react";
-import { getUser } from "@/lib/auth";
+import { getUser } from "@backend/auth/getUser";
 import { signout } from "@/app/actions/signout";
 import type { User } from "@/types";
 
