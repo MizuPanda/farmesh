@@ -1,4 +1,8 @@
-export type RequestStatus = "OPEN" | "MATCHED";
+export type RequestStatus =
+    | "OPEN"
+    | "MATCHED"
+    | "CONFIRMED"
+    | "FULFILLED";
 
 export type Request = {
     id: string;

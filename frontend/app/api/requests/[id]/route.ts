@@ -4,9 +4,47 @@ import {
   deleteMatchesByRequestId,
   deleteRequestById,
   getRequestById,
-  hasActiveMatchesForListing,
+  getMatchStatusesForListing,
   updateListingStatus,
 } from "@/lib/db";
+import type { ListingStatus, MatchStatus } from "@/types";
+
+function deriveListingStatus(statuses: MatchStatus[]): ListingStatus {
+  if (statuses.includes("FULFILLED")) return "FULFILLED";
+  if (statuses.includes("CONFIRMED")) return "CONFIRMED";
+  if (
+    statuses.includes("PROPOSED") ||
+    statuses.includes("AWAITING_CONFIRMATION")
+  ) {
+    return "MATCHED";
+  }
+  return "OPEN";
+}
+
+function isEnumMissingValue(error: unknown, enumName: string, value: string): boolean {
+  if (!(error instanceof Error)) return false;
+  const message = error.message.toLowerCase();
+  return (
+    message.includes("invalid input value for enum") &&
+    message.includes(enumName.toLowerCase()) &&
+    message.includes(value.toLowerCase())
+  );
+}
+
+async function updateListingStatusSafe(id: string, status: ListingStatus) {
+  try {
+    await updateListingStatus(id, status);
+  } catch (error) {
+    if (
+      (status === "CONFIRMED" || status === "FULFILLED") &&
+      isEnumMissingValue(error, "listing_status", status)
+    ) {
+      await updateListingStatus(id, "MATCHED");
+      return;
+    }
+    throw error;
+  }
+}
 
 // DELETE /api/requests/[id]
 export async function DELETE(
@@ -37,8 +75,8 @@ export async function DELETE(
     const removed = await deleteMatchesByRequestId(id);
     await Promise.all(
       removed.listingIds.map(async (listingId) => {
-        const hasActive = await hasActiveMatchesForListing(listingId);
-        await updateListingStatus(listingId, hasActive ? "MATCHED" : "OPEN");
+        const matchStatuses = await getMatchStatusesForListing(listingId);
+        await updateListingStatusSafe(listingId, deriveListingStatus(matchStatuses));
       })
     );
     await deleteRequestById(id);

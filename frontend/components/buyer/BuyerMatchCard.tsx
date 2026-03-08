@@ -17,18 +17,21 @@ type MatchInsights = {
 type BuyerMatchCardProps = {
     match: Match;
     recommended?: boolean;
+    onAdvanceStatus?: (match: Match) => Promise<void>;
     onDecline?: (match: Match) => Promise<void>;
 };
 
 export default function BuyerMatchCard({
     match,
     recommended = false,
+    onAdvanceStatus,
     onDecline,
 }: BuyerMatchCardProps) {
     const [showDetails, setShowDetails] = useState(false);
     const [insights, setInsights] = useState<MatchInsights | null>(null);
     const [loadingInsights, setLoadingInsights] = useState(false);
     const [insightError, setInsightError] = useState<string | null>(null);
+    const [advancing, setAdvancing] = useState(false);
     const [declining, setDeclining] = useState(false);
 
     const isSplit = match.product.toLowerCase().includes("split");
@@ -41,6 +44,20 @@ export default function BuyerMatchCard({
     const listingPrice = match.listing
         ? `$${match.listing.pricePerUnit.toFixed(2)} / ${match.listing.unit}`
         : null;
+    const vendorContact = [vendorPhone, vendorEmail].filter(Boolean).join(" · ");
+    const canConfirm = match.status === "PROPOSED" || match.status === "AWAITING_CONFIRMATION";
+    const canMarkFulfilled = match.status === "CONFIRMED";
+    const isFulfilled = match.status === "FULFILLED";
+    const canAdvance = canConfirm || canMarkFulfilled;
+    const canDecline = canConfirm;
+
+    const primaryLabel = canMarkFulfilled
+        ? "Mark Fulfilled"
+        : canConfirm
+            ? isSplit
+                ? "Accept Split Match"
+                : "Accept Match"
+            : "Fulfilled";
 
     const loadInsights = async () => {
         if (loadingInsights || insights) return;
@@ -84,6 +101,17 @@ export default function BuyerMatchCard({
             await onDecline(match);
         } finally {
             setDeclining(false);
+        }
+    };
+
+    const handleAdvance = async () => {
+        if (!onAdvanceStatus || !canAdvance || advancing) return;
+
+        try {
+            setAdvancing(true);
+            await onAdvanceStatus(match);
+        } finally {
+            setAdvancing(false);
         }
     };
 
@@ -135,6 +163,33 @@ export default function BuyerMatchCard({
             <p className="mb-5 text-sm leading-relaxed" style={{ color: "var(--text-muted)" }}>
                 {match.reason}
             </p>
+
+            {(match.status === "CONFIRMED" || match.status === "FULFILLED") && (
+                <div
+                    className="mb-5 border-l-2 px-4 py-3"
+                    style={{
+                        borderLeftColor: match.status === "FULFILLED" ? "#16a34a" : "#d97706",
+                        backgroundColor: "var(--surface-base)",
+                    }}
+                >
+                    <p
+                        className="text-[11px] font-semibold tracking-[0.15em] uppercase"
+                        style={{ color: match.status === "FULFILLED" ? "#166534" : "#92400e" }}
+                    >
+                        {match.status === "FULFILLED" ? "Order fulfilled" : "Match confirmed"}
+                    </p>
+                    <p className="mt-1 text-sm" style={{ color: "var(--text-muted)" }}>
+                        {match.status === "FULFILLED"
+                            ? "This match is complete."
+                            : "Coordinate directly with the vendor using the contact details below."}
+                    </p>
+                    {vendorContact && (
+                        <p className="mt-1 text-sm" style={{ color: "var(--foreground)" }}>
+                            Vendor contact: {vendorContact}
+                        </p>
+                    )}
+                </div>
+            )}
 
             {!showDetails && (
                 <div className="mb-5">
@@ -244,9 +299,12 @@ export default function BuyerMatchCard({
             <div className="flex flex-wrap gap-2">
                 <button
                     type="button"
-                    className="bg-amber-600 px-5 py-2.5 text-xs font-semibold tracking-[0.12em] uppercase text-white transition-colors duration-300 hover:bg-amber-700"
+                    onClick={() => void handleAdvance()}
+                    disabled={!onAdvanceStatus || !canAdvance || advancing || isFulfilled}
+                    className="bg-amber-600 px-5 py-2.5 text-xs font-semibold tracking-[0.12em] uppercase text-white transition-colors duration-300 hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-60"
+                    style={canMarkFulfilled ? { backgroundColor: "#16a34a" } : undefined}
                 >
-                    {isSplit ? "Confirm Split Order" : "Confirm Order"}
+                    {advancing ? "Saving..." : primaryLabel}
                 </button>
                 <button
                     type="button"
@@ -256,15 +314,17 @@ export default function BuyerMatchCard({
                 >
                     {showDetails ? "Back to Summary" : "View Details"}
                 </button>
-                <button
-                    type="button"
-                    onClick={() => void handleDecline()}
-                    disabled={declining || !onDecline}
-                    className="border px-5 py-2.5 text-xs font-semibold tracking-[0.12em] uppercase transition-colors duration-300 disabled:opacity-60"
-                    style={{ borderColor: "#fecaca", color: "#b91c1c" }}
-                >
-                    {declining ? "Declining..." : "Decline"}
-                </button>
+                {canDecline && (
+                    <button
+                        type="button"
+                        onClick={() => void handleDecline()}
+                        disabled={declining || !onDecline}
+                        className="border px-5 py-2.5 text-xs font-semibold tracking-[0.12em] uppercase transition-colors duration-300 disabled:opacity-60"
+                        style={{ borderColor: "#fecaca", color: "#b91c1c" }}
+                    >
+                        {declining ? "Declining..." : "Decline"}
+                    </button>
+                )}
             </div>
         </div>
     );
