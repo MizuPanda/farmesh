@@ -1,6 +1,6 @@
-import { useMemo, useState } from "react";
-import { Sparkles } from "lucide-react";
+import { useState } from "react";
 import LoadingOverlay from "@/components/common/LoadingOverlay";
+import DatePicker from "@/components/ui/date-picker";
 
 type PostRequestFormProps = {
   buyerId?: string;
@@ -26,17 +26,6 @@ export default function PostRequestForm({ buyerId, onClose, onSubmitted }: PostR
   const [allowSubstitutions, setAllowSubstitutions] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const preview = useMemo(
-    () => ({
-      product: product || "—",
-      quantity: quantity || "—",
-      unit: unit || "—",
-      requiredBy: neededDate || "—",
-      allowSubstitutions,
-    }),
-    [product, quantity, unit, neededDate, allowSubstitutions]
-  );
 
   const handleSubmit = async () => {
     setError(null);
@@ -93,11 +82,10 @@ export default function PostRequestForm({ buyerId, onClose, onSubmitted }: PostR
 
   return (
     <>
-      <div className="space-y-4">
-        <div
-          className="border p-6"
-          style={{ borderColor: "var(--border-soft)", backgroundColor: "var(--surface-base)" }}
-        >
+      <div
+        className="border p-6"
+        style={{ borderColor: "var(--border-soft)", backgroundColor: "var(--surface-base)" }}
+      >
         <p className="mb-1 text-[11px] font-semibold tracking-[0.25em] uppercase text-amber-700">
           New Request
         </p>
@@ -200,12 +188,11 @@ export default function PostRequestForm({ buyerId, onClose, onSubmitted }: PostR
             >
               Required by
             </label>
-            <input
-              type="date"
+            <DatePicker
               value={neededDate}
-              onChange={(event) => setNeededDate(event.target.value)}
-              className={inputCls}
-              style={inputStyle}
+              onChange={setNeededDate}
+              accent="amber"
+              disabled={loading}
             />
           </div>
 
@@ -241,39 +228,6 @@ export default function PostRequestForm({ buyerId, onClose, onSubmitted }: PostR
           >
             Cancel
           </button>
-        </div>
-        </div>
-
-        <div
-          className="border-l-2 border-amber-600 p-5"
-          style={{
-            backgroundColor: "var(--surface-base)",
-            borderTopColor: "transparent",
-            borderRightColor: "var(--border-soft)",
-            borderBottomColor: "var(--border-soft)",
-          }}
-        >
-          <div className="mb-4 flex items-center gap-2">
-            <Sparkles className="h-3.5 w-3.5 text-amber-600" />
-            <p className="text-[11px] font-semibold tracking-[0.2em] uppercase text-amber-700">
-              AI Interpreted Request
-            </p>
-          </div>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-            {[
-              { label: "Product", value: preview.product },
-              { label: "Quantity", value: `${preview.quantity} ${preview.unit}` },
-              { label: "Required by", value: preview.requiredBy },
-              { label: "Substitutions", value: preview.allowSubstitutions ? "Allowed" : "Not allowed" },
-            ].map(({ label, value }) => (
-              <div key={label}>
-                <p className="text-[11px] font-semibold tracking-[0.12em] uppercase text-amber-700">
-                  {label}
-                </p>
-                <p className="mt-0.5 text-sm font-medium text-amber-900">{value}</p>
-              </div>
-            ))}
-          </div>
         </div>
       </div>
       <LoadingOverlay
