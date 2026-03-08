@@ -1,5 +1,10 @@
-import { parsedSupplyPreview } from "@/data/mockData";
+"use client";
+
+import { useState } from "react";
 import { Sparkles } from "lucide-react";
+import { getUser } from "@/lib/auth";
+import { createListingObject } from "@/lib/listings";
+import { normalizeAndInsertListing } from "@/app/actions/listings";
 
 type PostSupplyFormProps = {
     onClose: () => void;
@@ -9,6 +14,51 @@ const inputCls = "w-full border px-3 py-2 text-sm font-sans outline-none transit
 const inputStyle = { borderColor: "var(--border-default)", backgroundColor: "var(--surface-base)", color: "var(--foreground)" } as const;
 
 export default function PostSupplyForm({ onClose }: PostSupplyFormProps) {
+    const [product, setProduct] = useState("");
+    const [quantity, setQuantity] = useState("");
+    const [unit, setUnit] = useState("");
+    const [pricePerUnit, setPricePerUnit] = useState("");
+    const [expirationDate, setExpirationDate] = useState("");
+    const [description, setDescription] = useState("");
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    async function handleSubmit() {
+        setError(null);
+        setIsSubmitting(true);
+
+        try {
+            const user = await getUser();
+            if (!user) {
+                setError("You must be logged in to post a listing.");
+                return;
+            }
+
+            const listing = createListingObject({
+                vendorId: user.id,
+                product,
+                quantity: Number(quantity),
+                unit,
+                pricePerUnit: Number(pricePerUnit),
+                expirationDate,
+                description: description || undefined,
+            });
+
+            const result = await normalizeAndInsertListing(listing);
+
+            if (!result.success) {
+                setError(result.error ?? "Failed to create listing.");
+                return;
+            }
+
+            onClose();
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "An unexpected error occurred.");
+        } finally {
+            setIsSubmitting(false);
+        }
+    }
+
     return (
         <div className="space-y-4">
             {/* Text Input Card */}
@@ -23,6 +73,8 @@ export default function PostSupplyForm({ onClose }: PostSupplyFormProps) {
                 <textarea
                     rows={3}
                     placeholder="I have 60 lbs of baby greens available this week for bulk sale"
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
                     className="w-full resize-none border px-4 py-3 text-sm font-sans outline-none transition-colors duration-200"
                     style={{ borderColor: "var(--border-default)", backgroundColor: "var(--surface-card)", color: "var(--foreground)" }}
                     onFocus={(e) => (e.currentTarget.style.borderColor = "#16a34a")}
@@ -31,32 +83,74 @@ export default function PostSupplyForm({ onClose }: PostSupplyFormProps) {
 
                 {/* Structured fields */}
                 <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-5">
-                    {[
-                        { label: "Product", type: "text", placeholder: "e.g. Baby Greens" },
-                        { label: "Quantity", type: "number", placeholder: "60" },
-                        { label: "Unit", type: "text", placeholder: "lb" },
-                        { label: "Price / unit", type: "number", placeholder: "4.50" },
-                    ].map(({ label, type, placeholder }) => (
-                        <div key={label}>
-                            <label className="mb-1 block text-[11px] font-semibold tracking-[0.12em] uppercase" style={{ color: "var(--text-muted)" }}>
-                                {label}
-                            </label>
-                            <input
-                                type={type}
-                                placeholder={placeholder}
-                                className={inputCls}
-                                style={inputStyle}
-                                onFocus={(e) => (e.currentTarget.style.borderColor = "#16a34a")}
-                                onBlur={(e) => (e.currentTarget.style.borderColor = "var(--border-default)")}
-                            />
-                        </div>
-                    ))}
+                    <div>
+                        <label className="mb-1 block text-[11px] font-semibold tracking-[0.12em] uppercase" style={{ color: "var(--text-muted)" }}>
+                            Product
+                        </label>
+                        <input
+                            type="text"
+                            placeholder="e.g. Baby Greens"
+                            value={product}
+                            onChange={(e) => setProduct(e.target.value)}
+                            className={inputCls}
+                            style={inputStyle}
+                            onFocus={(e) => (e.currentTarget.style.borderColor = "#16a34a")}
+                            onBlur={(e) => (e.currentTarget.style.borderColor = "var(--border-default)")}
+                        />
+                    </div>
+                    <div>
+                        <label className="mb-1 block text-[11px] font-semibold tracking-[0.12em] uppercase" style={{ color: "var(--text-muted)" }}>
+                            Quantity
+                        </label>
+                        <input
+                            type="number"
+                            placeholder="60"
+                            value={quantity}
+                            onChange={(e) => setQuantity(e.target.value)}
+                            className={inputCls}
+                            style={inputStyle}
+                            onFocus={(e) => (e.currentTarget.style.borderColor = "#16a34a")}
+                            onBlur={(e) => (e.currentTarget.style.borderColor = "var(--border-default)")}
+                        />
+                    </div>
+                    <div>
+                        <label className="mb-1 block text-[11px] font-semibold tracking-[0.12em] uppercase" style={{ color: "var(--text-muted)" }}>
+                            Unit
+                        </label>
+                        <input
+                            type="text"
+                            placeholder="lb"
+                            value={unit}
+                            onChange={(e) => setUnit(e.target.value)}
+                            className={inputCls}
+                            style={inputStyle}
+                            onFocus={(e) => (e.currentTarget.style.borderColor = "#16a34a")}
+                            onBlur={(e) => (e.currentTarget.style.borderColor = "var(--border-default)")}
+                        />
+                    </div>
+                    <div>
+                        <label className="mb-1 block text-[11px] font-semibold tracking-[0.12em] uppercase" style={{ color: "var(--text-muted)" }}>
+                            Price / unit
+                        </label>
+                        <input
+                            type="number"
+                            placeholder="4.50"
+                            value={pricePerUnit}
+                            onChange={(e) => setPricePerUnit(e.target.value)}
+                            className={inputCls}
+                            style={inputStyle}
+                            onFocus={(e) => (e.currentTarget.style.borderColor = "#16a34a")}
+                            onBlur={(e) => (e.currentTarget.style.borderColor = "var(--border-default)")}
+                        />
+                    </div>
                     <div>
                         <label className="mb-1 block text-[11px] font-semibold tracking-[0.12em] uppercase" style={{ color: "var(--text-muted)" }}>
                             Expiry Date
                         </label>
                         <input
                             type="date"
+                            value={expirationDate}
+                            onChange={(e) => setExpirationDate(e.target.value)}
                             className={inputCls}
                             style={inputStyle}
                             onFocus={(e) => (e.currentTarget.style.borderColor = "#16a34a")}
@@ -65,17 +159,24 @@ export default function PostSupplyForm({ onClose }: PostSupplyFormProps) {
                     </div>
                 </div>
 
+                {error && (
+                    <p className="mt-3 text-sm text-red-600">{error}</p>
+                )}
+
                 <div className="mt-5 flex gap-2">
                     <button
                         type="button"
-                        className="bg-green-600 px-6 py-2.5 text-xs font-semibold tracking-[0.12em] uppercase text-white transition-colors duration-300 hover:bg-green-700"
+                        onClick={handleSubmit}
+                        disabled={isSubmitting}
+                        className="bg-green-600 px-6 py-2.5 text-xs font-semibold tracking-[0.12em] uppercase text-white transition-colors duration-300 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                        Submit
+                        {isSubmitting ? "Submitting…" : "Submit"}
                     </button>
                     <button
                         type="button"
                         onClick={onClose}
-                        className="border px-6 py-2.5 text-xs font-semibold tracking-[0.12em] uppercase transition-colors duration-300"
+                        disabled={isSubmitting}
+                        className="border px-6 py-2.5 text-xs font-semibold tracking-[0.12em] uppercase transition-colors duration-300 disabled:opacity-50"
                         style={{ borderColor: "var(--border-default)", color: "var(--text-muted)" }}
                     >
                         Cancel
@@ -93,10 +194,10 @@ export default function PostSupplyForm({ onClose }: PostSupplyFormProps) {
                 </div>
                 <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
                     {[
-                        { label: "Product", value: parsedSupplyPreview.product },
-                        { label: "Quantity", value: `${parsedSupplyPreview.quantity} ${parsedSupplyPreview.unit}` },
-                        { label: "Unit", value: parsedSupplyPreview.unit },
-                        { label: "Price / unit", value: `$${parsedSupplyPreview.pricePerUnit.toFixed(2)}` },
+                        { label: "Product", value: product || "—" },
+                        { label: "Quantity", value: quantity ? `${quantity} ${unit}` : "—" },
+                        { label: "Unit", value: unit || "—" },
+                        { label: "Price / unit", value: pricePerUnit ? `$${Number(pricePerUnit).toFixed(2)}` : "—" },
                     ].map(({ label, value }) => (
                         <div key={label}>
                             <p className="text-[11px] font-semibold tracking-[0.12em] uppercase text-green-700">{label}</p>

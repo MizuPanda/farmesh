@@ -35,12 +35,15 @@ export function createListingObject({
         originalProduct: product,
         normalizedProduct: product,
         productCategory: "other",
-        quantity,
-        unit,
-        pricePerUnit,
+        originalQuantity: quantity,
+        originalUnit: unit,
+        originalPricePerUnit: pricePerUnit,
+        canonicalQuantity: quantity,
+        canonicalUnit: unit,
+        canonicalPricePerCanonicalUnit: pricePerUnit,
+        assumptions: [],
         status: "OPEN",
         expirationDate,
-        assumptions: [],
     };
 }
 
@@ -59,12 +62,15 @@ export async function insertListing(listing: NormalizedListing) {
         original_product: listing.originalProduct,
         normalized_product: listing.normalizedProduct,
         product_category: listing.productCategory,
-        quantity: listing.quantity,
-        unit: listing.unit,
-        price_per_unit: listing.pricePerUnit,
+        original_quantity: listing.originalQuantity,
+        original_unit: listing.originalUnit,
+        original_price_per_unit: listing.originalPricePerUnit,
+        canonical_quantity: listing.canonicalQuantity,
+        canonical_unit: listing.canonicalUnit,
+        canonical_price_per_canonical_unit: listing.canonicalPricePerCanonicalUnit,
+        assumptions: listing.assumptions,
         status: listing.status,
         expiration_date: listing.expirationDate,
-        assumptions: listing.assumptions,
     });
 
     if (error) {

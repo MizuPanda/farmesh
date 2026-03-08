@@ -17,14 +17,18 @@ export type NormalizedListing = {
     normalizedProduct: string;
     productCategory: ProductCategory;
 
-    quantity: number;
-    unit: string;
-    pricePerUnit: number;
+    originalQuantity: number;
+    originalUnit: string;
+    originalPricePerUnit: number;
+
+    canonicalQuantity: number;
+    canonicalUnit: string;
+    canonicalPricePerCanonicalUnit: number;
+
+    assumptions: string[];
 
     status: ListingStatus;
 
     createdAt?: string;
     expirationDate: string;
-
-    assumptions: string[];
 };
