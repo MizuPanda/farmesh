@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { BackboardClient, type MessageResponse } from 'backboard-sdk';
 import { handleProposedMatch } from '@/lib/coordinationAgent';
 import { getListings, getRequests } from '@/lib/db';
+import { normalizeForMatching } from '@/lib/normalizationAgent';
 
 /**
  * MODEL SELECTION NOTE:
@@ -38,6 +39,9 @@ export async function POST(req: NextRequest) {
       console.log('[MatchingAgent] Early exit — no open listings or requests');
       return NextResponse.json({ success: false, message: 'No open listings or requests to match.' });
     }
+
+    const { listings: normalizedListings, requests: normalizedRequirements } =
+      await normalizeForMatching({ listings, requests: requirements });
 
     const client = new BackboardClient({ apiKey });
 
@@ -87,10 +91,10 @@ Your job:
 
     const prompt = `
 STANDARDIZED LISTINGS (Vendor Supply):
-${JSON.stringify(listings, null, 2)}
+${JSON.stringify(normalizedListings, null, 2)}
 
 WEIGHTED REQUIREMENTS (Buyer Demand):
-${JSON.stringify(requirements, null, 2)}
+${JSON.stringify(normalizedRequirements, null, 2)}
 `;
 
     const response = await client.addMessage(thread.threadId, {

@@ -2,6 +2,12 @@ export type { UserType, User } from "./User";
 export type { ListingStatus, Listing } from "./Listing";
 export type { MatchStatus, Match } from "./Match";
 export type { RequestStatus, Request } from "./Request";
+export type {
+  UnitFamily,
+  CanonicalUnit,
+  NormalizedListing,
+  NormalizedRequest,
+} from "./Normalization";
 
 export type Notification = {
     id: string;
