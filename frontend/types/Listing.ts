@@ -3,12 +3,12 @@ export type ListingStatus = "OPEN" | "MATCHED" | "EXPIRED";
 export type Listing = {
     id: string;
     vendorId: string;
-    rawInput: string;
+    rawInput?: string;
     product: string;
-    pricePerUnit: number;
     quantity: number;
     unit: string;
+    pricePerUnit: number;
     status: ListingStatus;
-    createdAt: string;
+    createdAt?: string;
     expirationDate: string;
 };

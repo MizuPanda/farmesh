@@ -20,7 +20,6 @@ export default function FarmerDashboard() {
 
     const activeCount = farmerListings.filter((l) => l.status === "OPEN").length;
     const matchedCount = farmerListings.filter((l) => l.status === "MATCHED").length;
-    const pendingCount = farmerMatches.filter((m) => m.status === "PROPOSED").length;
     const unreadCount = farmerNotifications.filter((n) => !n.read).length;
 
     const statCard = (icon: React.ReactNode, label: string, value: number, sub: string) => (
@@ -72,7 +71,6 @@ export default function FarmerDashboard() {
                 <div className="mb-10 grid grid-cols-3 gap-4 stagger-children">
                     {statCard(<Package className="h-3.5 w-3.5" />, "Active", activeCount, "open listings")}
                     {statCard(<TrendingUp className="h-3.5 w-3.5" />, "Matched", matchedCount, "listings matched")}
-                    {statCard(<Clock className="h-3.5 w-3.5" />, "Pending", pendingCount, "match proposals")}
                 </div>
 
                 {/* Post Supply form (inline) */}
