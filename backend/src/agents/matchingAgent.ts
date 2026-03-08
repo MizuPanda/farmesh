@@ -216,18 +216,18 @@ function pairKey(listingId: string, requestId: string): string {
   return `${listingId}::${requestId}`;
 }
 
-function productKey(item: { product: string; normalizedProduct?: string | null }): string {
+function productKey(item: { originalProduct: string; normalizedProduct?: string | null }): string {
   const normalized = item.normalizedProduct;
   return typeof normalized === "string" && normalized.trim().length > 0
     ? normalized
-    : item.product;
+    : item.originalProduct;
 }
 
 function getCanonicalComparable(
   item: {
-    quantity: number;
-    unit: string;
-    pricePerUnit: number;
+    originalQuantity: number;
+    originalUnit: string;
+    originalPricePerUnit: number;
     canonicalQuantity?: number | null;
     canonicalUnit?: string | null;
     canonicalPricePerCanonicalUnit?: number | null;
@@ -249,14 +249,14 @@ function getCanonicalComparable(
     };
   }
 
-  if (!Number.isFinite(item.quantity) || !Number.isFinite(item.pricePerUnit)) {
+  if (!Number.isFinite(item.originalQuantity) || !Number.isFinite(item.originalPricePerUnit)) {
     return null;
   }
 
   return {
-    quantity: item.quantity,
-    unit: item.unit,
-    pricePerUnit: item.pricePerUnit,
+    quantity: item.originalQuantity,
+    unit: item.originalUnit,
+    pricePerUnit: item.originalPricePerUnit,
   };
 }
 
@@ -283,11 +283,11 @@ async function runDeterministicFallback(
 
     let bestCandidate:
       | {
-          listing: NormalizedListing;
-          score: number;
-          matchedQuantity: number;
-          reason: string;
-        }
+        listing: NormalizedListing;
+        score: number;
+        matchedQuantity: number;
+        reason: string;
+      }
       | null = null;
 
     for (const listing of listings) {
@@ -353,7 +353,7 @@ async function runDeterministicFallback(
       buyerId: request.buyerId,
       listingId: bestCandidate.listing.id,
       requestId: request.id,
-      product: bestCandidate.listing.normalizedProduct ?? bestCandidate.listing.product,
+      product: bestCandidate.listing.normalizedProduct ?? bestCandidate.listing.originalProduct,
       quantity: bestCandidate.matchedQuantity,
       score: bestCandidate.score,
       reason: bestCandidate.reason,
@@ -373,6 +373,7 @@ export async function proposeMatches(params: {
   requests: NormalizedRequest[];
   existingPairs?: Set<string> | string[];
 }): Promise<MatchingAgentResult> {
+  console.log(`[MatchingAgent] Proposing matches between ${params.listings.length} listings and ${params.requests.length} requests.`);
   const seenPairs = normalizeExistingPairs(params.existingPairs);
   const proposedMatches: ProposedAgentMatch[] = [];
 
@@ -398,62 +399,38 @@ export async function proposeMatches(params: {
   if (apiKey) {
     const client = new BackboardClient({ apiKey });
 
-    const proposeMatchTool = {
-      type: "function",
-      function: {
-        name: "propose_match",
-        description: "Propose a specific match between a vendor listing and a buyer request.",
-        parameters: {
-          type: "object",
-          properties: {
-            vendorId: { type: "string", description: "The vendorId from the matched listing" },
-            buyerId: { type: "string", description: "The buyerId from the matched request" },
-            listingId: { type: "string", description: "The id of the matched listing" },
-            requestId: { type: "string", description: "The id of the matched request" },
-            product: { type: "string", description: "The product being matched" },
-            quantity: {
-              type: "number",
-              description: "Quantity that can be fulfilled (min of listing qty and request qty)",
-            },
-            score: {
-              type: "number",
-              description:
-                "Match confidence score 0-100 based on product similarity, quantity coverage, price fit, and constraints",
-            },
-            reason: {
-              type: "string",
-              description: "A 1-2 sentence explanation for why this is a good match",
-            },
-          },
-          required: [
-            "vendorId",
-            "buyerId",
-            "listingId",
-            "requestId",
-            "product",
-            "quantity",
-            "score",
-            "reason",
-          ],
-        },
-      },
-    };
-
     const assistant = await client.createAssistant({
       name: "Farmesh Matching Agent",
-      system_prompt: `You are the Farmesh Matching Agent — the core fulfillment engine for a local food marketplace.
+      system_prompt: `You are the Farmesh Matching Agent — the core fulfillment engine for a local food marketplace connecting farmers (vendors) and buyers.
+Your job is to analyze standardized listings (supply) and standardized requests (demand) and identify high-quality fulfillment matches.
 
-Your job:
-1. Analyze the standardized listings (vendor supply) and standardized requests (buyer demand).
-2. Find all high-quality matches (score >= 70) based on:
-   - Product overlap or semantic similarity (e.g. "salad greens" ↔ "baby greens" is valid)
-   - Quantity: listing must supply at least 30% of the request
-   - Price: listing price should not exceed buyer price by more than 20%
-3. For each valid match, call the propose_match tool.
-4. Only call propose_match for genuine matches.
-5. If the tool is unavailable, respond with a raw JSON array of match objects only.
+MATCHING CRITERIA:
+1. Product Compatibility:
+   - Exact matches (e.g., "gala apples" ↔ "gala apples")
+   - Semantic/Family matches (e.g., "mixed greens" ↔ "spinach", "tomatoes" ↔ "roma tomatoes")
+2. Quantity Coverage:
+   - The listing must be able to supply at least 30% of the requested quantity (after unit conversion if necessary).
+3. Price Feasibility:
+   - The listing price per unit should ideally be equal to or lower than the buyer's budget.
+   - Matches where the listing price exceeds the buyer's budget by up to 20% are acceptable but should score lower.
+
+SCORING (0-100):
+- Calculate a confidence score based on Product (45%), Quantity Coverage (35%), and Price Fit (20%).
+- Only propose matches with a final score >= 70.
+
+OUTPUT FORMAT:
+You must strictly return a valid JSON array of match objects. Do not include any markdown formatting, explanations, or text outside the JSON array.
+
+Return format:
+vendorId: "string (from listing)",
+buyerId: "string (from request)",
+listingId: "string",
+requestId: "string",
+product: "string (the standardized product name)",
+quantity: number (matched quantity, min of listing/request),
+score: number (0-100),
+reason: "1-2 sentence explanation of why this match works (price, quantity coverage, product fit)"
 `,
-      tools: [proposeMatchTool],
     });
 
     const thread = await client.createThread(assistant.assistantId);
@@ -475,39 +452,40 @@ ${JSON.stringify(params.requests, null, 2)}
         stream: false,
       })) as MessageResponse;
 
-      if (response.toolCalls?.length) {
-        for (const toolCall of response.toolCalls) {
-          if (toolCall.function.name !== "propose_match") continue;
-          await persistMatchIfValid(toolCall.function.parsedArguments);
-        }
-      }
-
-      if (proposedMatches.length === 0 && response.content) {
+      console.log(`[MatchingAgent] LLM responded with status: ${response.status}`);
+      if (response.content) {
+        console.log(`[MatchingAgent] Raw LLM content preview: ${response.content.substring(0, 200)}...`);
         try {
           const cleaned = response.content
             .replace(/```json\s*/gi, "")
             .replace(/```\s*/gi, "")
             .trim();
 
-          const arrayMatch = cleaned.match(/\[[\s\S]*\]/);
-          if (arrayMatch) {
-            const parsed = JSON.parse(arrayMatch[0]) as unknown;
+          const firstBracket = cleaned.indexOf("[");
+          const lastBracket = cleaned.lastIndexOf("]");
+
+          if (firstBracket !== -1 && lastBracket !== -1 && lastBracket >= firstBracket) {
+            const jsonOnly = cleaned.slice(firstBracket, lastBracket + 1);
+            const parsed = JSON.parse(jsonOnly) as unknown;
+
             if (Array.isArray(parsed)) {
               for (const entry of parsed) {
                 await persistMatchIfValid(entry);
               }
             }
-          }
 
-          if (proposedMatches.length > 0) {
-            usedTextFallback = true;
+            if (proposedMatches.length > 0) {
+              usedTextFallback = true;
+            }
           }
-        } catch {
+        } catch (parseError) {
+          console.warn(`[MatchingAgent] LLM parsing failed:`, parseError);
           // Ignore parsing errors and continue to deterministic fallback.
         }
       }
     } catch (error) {
       llmError = error instanceof Error ? error.message : "Unknown matching model error";
+      console.error(`[MatchingAgent] LLM execution failed:`, llmError);
     } finally {
       try {
         await client.deleteAssistant(assistant.assistantId);
@@ -521,6 +499,7 @@ ${JSON.stringify(params.requests, null, 2)}
   }
 
   if (proposedMatches.length === 0) {
+    console.log(`[MatchingAgent] No matches from LLM. Running deterministic fallback...`);
     const deterministicMatches = await runDeterministicFallback(
       params.listings,
       params.requests,
@@ -528,6 +507,7 @@ ${JSON.stringify(params.requests, null, 2)}
     );
 
     if (deterministicMatches.length > 0) {
+      console.log(`[MatchingAgent] Deterministic fallback found ${deterministicMatches.length} matches.`);
       proposedMatches.push(...deterministicMatches);
       usedDeterministicFallback = true;
     }

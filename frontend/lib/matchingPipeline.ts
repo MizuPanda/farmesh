@@ -3,47 +3,18 @@ import {
   type CoordinationFrontendEvent,
 } from "@backend/agents/coordinationAgent";
 import { proposeMatches } from "@backend/agents/matchingAgent";
-import { normalizeForMatching } from "@backend/agents/normalizationAgent";
 import {
-  getListings,
+  getNormalizedListings,
+  getNormalizedListingsByVendor,
   getMatches,
-  getRequests,
-  updateListingNormalization,
-  updateRequestNormalization,
+  getNormalizedRequests,
+  getNormalizedRequestsByBuyer,
 } from "@/lib/db";
 import type {
-  Listing,
   Match,
   NormalizedListing,
   NormalizedRequest,
-  Request,
 } from "@/types";
-
-function toNormalizedListing(listing: Listing): NormalizedListing {
-  return {
-    ...listing,
-    normalizedProduct: listing.normalizedProduct ?? listing.product,
-    productCategory: listing.productCategory ?? "EMPTY",
-    unitFamily: listing.unitFamily ?? null,
-    canonicalQuantity: listing.canonicalQuantity ?? null,
-    canonicalUnit: listing.canonicalUnit ?? null,
-    canonicalPricePerCanonicalUnit: listing.canonicalPricePerCanonicalUnit ?? null,
-    assumptions: listing.assumptions ?? [],
-  };
-}
-
-function toNormalizedRequest(request: Request): NormalizedRequest {
-  return {
-    ...request,
-    normalizedProduct: request.normalizedProduct ?? request.product,
-    productCategory: request.productCategory ?? "EMPTY",
-    unitFamily: request.unitFamily ?? null,
-    canonicalQuantity: request.canonicalQuantity ?? null,
-    canonicalUnit: request.canonicalUnit ?? null,
-    canonicalPricePerCanonicalUnit: request.canonicalPricePerCanonicalUnit ?? null,
-    assumptions: request.assumptions ?? [],
-  };
-}
 
 export type MatchingPipelineResult = {
   success: boolean;
@@ -64,15 +35,33 @@ export type MatchingPipelineResult = {
 };
 
 export async function runMatchingPipeline(params?: {
-  listings?: Listing[];
-  requests?: Request[];
+  role?: "farmer" | "buyer";
+  userId?: string;
 }): Promise<MatchingPipelineResult> {
-  const listings = (params?.listings ?? (await getListings())).filter(
-    (listing) => listing.status === "OPEN"
-  );
-  const requests = (params?.requests ?? (await getRequests())).filter(
-    (request) => request.status === "OPEN"
-  );
+  const isFarmer = params?.role === "farmer" && params?.userId;
+  const isBuyer = params?.role === "buyer" && params?.userId;
+
+  let rawListings: NormalizedListing[] = [];
+  let rawRequests: NormalizedRequest[] = [];
+
+  console.log(`[MatchingPipeline] Running matching pipeline for role: ${params?.role ?? "all"}, userId: ${params?.userId ?? "all"}`);
+
+  if (isFarmer) {
+    rawListings = await getNormalizedListingsByVendor(params.userId!);
+    rawRequests = await getNormalizedRequests();
+  } else if (isBuyer) {
+    rawListings = await getNormalizedListings();
+    rawRequests = await getNormalizedRequestsByBuyer(params.userId!);
+  } else {
+    rawListings = await getNormalizedListings();
+    rawRequests = await getNormalizedRequests();
+  }
+
+  const listings = rawListings.filter((listing) => listing.status === "OPEN");
+  const requests = rawRequests.filter((request) => request.status === "OPEN");
+
+  console.log(`[MatchingPipeline] Fetched raw data: ${rawListings.length} listings, ${rawRequests.length} requests`);
+  console.log(`[MatchingPipeline] Active data: ${listings.length} OPEN listings, ${requests.length} OPEN requests`);
 
   if (listings.length === 0 || requests.length === 0) {
     return {
@@ -94,59 +83,24 @@ export async function runMatchingPipeline(params?: {
     };
   }
 
-  let normalizedListings = listings.map(toNormalizedListing);
-  let normalizedRequests = requests.map(toNormalizedRequest);
-  let normalizationError: string | null = null;
-
-  try {
-    const normalized = await normalizeForMatching({
-      listings,
-      requests,
-    });
-
-    normalizedListings = normalized.listings;
-    normalizedRequests = normalized.requests;
-
-    await Promise.allSettled([
-      ...normalizedListings.map((listing) =>
-        updateListingNormalization(listing.id, {
-          normalizedProduct: listing.normalizedProduct,
-          productCategory: listing.productCategory,
-          canonicalQuantity: listing.canonicalQuantity,
-          canonicalUnit: listing.canonicalUnit,
-          canonicalPricePerCanonicalUnit: listing.canonicalPricePerCanonicalUnit,
-          assumptions: listing.assumptions,
-        })
-      ),
-      ...normalizedRequests.map((request) =>
-        updateRequestNormalization(request.id, {
-          normalizedProduct: request.normalizedProduct,
-          productCategory: request.productCategory,
-          canonicalQuantity: request.canonicalQuantity,
-          canonicalUnit: request.canonicalUnit,
-          canonicalPricePerCanonicalUnit: request.canonicalPricePerCanonicalUnit,
-          assumptions: request.assumptions,
-        })
-      ),
-    ]);
-  } catch (error) {
-    normalizationError =
-      error instanceof Error ? error.message : "Normalization failed";
-  }
-
   const existingMatches = await getMatches();
   const existingPairs = new Set(
     existingMatches.map((match) => `${match.listingId}::${match.requestId}`)
   );
 
+  console.log(`[MatchingPipeline] Found ${existingPairs.size} existing match pairs. Proposing new matches...`);
+
   const matching = await proposeMatches({
-    listings: normalizedListings,
-    requests: normalizedRequests,
+    listings: listings,
+    requests: requests,
     existingPairs,
   });
 
-  const listingById = new Map(normalizedListings.map((listing) => [listing.id, listing]));
-  const requestById = new Map(normalizedRequests.map((request) => [request.id, request]));
+  console.log(`[MatchingPipeline] Matching engine returned ${matching.matches.length} proposed matches.`);
+  console.log(`[MatchingPipeline] Engine debug:`, matching.debug);
+
+  const listingById = new Map(listings.map((listing) => [listing.id, listing]));
+  const requestById = new Map(requests.map((request) => [request.id, request]));
 
   const usedListingIds = new Set<string>();
   const usedRequestIds = new Set<string>();
@@ -165,14 +119,14 @@ export async function runMatchingPipeline(params?: {
 
     const quantity = Number.isFinite(proposed.quantity) && proposed.quantity > 0
       ? proposed.quantity
-      : Math.min(listing.canonicalQuantity ?? listing.quantity, request.canonicalQuantity ?? request.quantity);
+      : Math.min(listing.canonicalQuantity ?? listing.originalQuantity, request.canonicalQuantity ?? request.originalQuantity);
 
     const coordinated = await coordinateProposedMatch({
       vendorId: listing.vendorId,
       buyerId: request.buyerId,
       listingId: listing.id,
       requestId: request.id,
-      product: proposed.product || listing.normalizedProduct || listing.product,
+      product: proposed.product || listing.normalizedProduct || listing.originalProduct,
       quantity,
       score: proposed.score,
       reason: proposed.reason,
@@ -185,6 +139,8 @@ export async function runMatchingPipeline(params?: {
     existingPairs.add(key);
   }
 
+  console.log(`[MatchingPipeline] Pipeline completed. Persisted ${persistedMatches.length} coordinated matches.`);
+
   return {
     success: true,
     matchesFound: persistedMatches.length,
@@ -192,7 +148,7 @@ export async function runMatchingPipeline(params?: {
     coordinationEvents,
     debug: {
       ...matching.debug,
-      normalizationError,
+      normalizationError: null,
     },
   };
 }

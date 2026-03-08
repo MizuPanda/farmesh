@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { normalizeForMatching } from "@backend/agents/normalizationAgent";
+import { normalize as normalizeRequest } from "@backend/agents/requestNormAgent";
 import { getRequests, getRequestsByBuyer, insertRequest } from "@/lib/db";
 import { runMatchingPipeline } from "@/lib/matchingPipeline";
 import { createClient } from "@/lib/supabase/server";
-import type { Request } from "@/types";
+import type { Request, NormalizedRequest } from "@/types";
 
 function parsePositiveNumber(value: unknown): number | null {
   const parsed = typeof value === "number" ? value : Number(value);
@@ -84,15 +84,17 @@ export async function POST(req: NextRequest) {
       createdAt: new Date().toISOString(),
     };
 
-    let requestToPersist: Request = requestInput;
+    let requestToPersist: Request | NormalizedRequest = requestInput;
     let normalizationWarning: string | null = null;
 
     try {
-      const normalized = await normalizeForMatching({
-        listings: [],
-        requests: [requestInput],
-      });
-      requestToPersist = normalized.requests[0] ?? requestInput;
+      const jsonString = JSON.stringify(requestInput);
+      const normalized = await normalizeRequest(jsonString);
+      if (normalized) {
+        requestToPersist = normalized;
+      } else {
+        normalizationWarning = "Normalization agent returned no result.";
+      }
     } catch (error) {
       normalizationWarning =
         error instanceof Error ? error.message : "Normalization failed";
@@ -104,7 +106,7 @@ export async function POST(req: NextRequest) {
     let matchingWarning: string | null = null;
 
     try {
-      matchResult = await runMatchingPipeline();
+      matchResult = await runMatchingPipeline({ role: "buyer", userId: buyerId });
     } catch (error) {
       matchingWarning =
         error instanceof Error ? error.message : "Auto matching failed";

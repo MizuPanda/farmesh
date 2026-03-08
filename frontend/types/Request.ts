@@ -15,13 +15,4 @@ export type Request = {
     status: RequestStatus;
     createdAt?: string;
     neededDate?: string;
-
-    // Normalized fields persisted in Supabase.
-    normalizedProduct?: string | null;
-    productCategory?: string | null;
-    unitFamily?: "weight" | "count" | null;
-    canonicalQuantity?: number | null;
-    canonicalUnit?: "kg" | "piece" | null;
-    canonicalPricePerCanonicalUnit?: number | null;
-    assumptions?: string[];
 };
