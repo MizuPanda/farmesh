@@ -1,6 +1,6 @@
 # 🌱 Farmesh
 
-> **AI-assisted coordination dashboard for Canadian local food networks.**
+> **AI-assisted coordination dashboard for Canadian local food networks.**  
 > Connecting local farmers, market vendors, and Canadian buyers through intelligent supply and demand matching — powered by [Backboard.io](https://backboard.io) AI agents.
 
 Farmesh is a lightweight coordination platform built to strengthen Canadian local food systems. It helps nearby farms and businesses coordinate produce supply and demand more efficiently — reducing food waste, helping Canadian farmers sell more of their harvest, and making it easier for local businesses to source fresh, nearby food.
@@ -60,11 +60,11 @@ All AI orchestration is handled by **Backboard.io** agents:
 
 | Layer | Technology |
 |---|---|
-| Framework | [Next.js 16](https://nextjs.org) (App Router, full-stack) |
-| Language | TypeScript 5 |
-| Styling | Tailwind CSS 4 |
-| Database | PostgreSQL + [Prisma ORM](https://www.prisma.io) |
-| Auth | [Supabase](https://supabase.com) (SSR, role-based mock auth) |
+| Framework | [Next.js](https://nextjs.org) (App Router, full-stack) |
+| Language | TypeScript |
+| Styling | Tailwind CSS |
+| Database | PostgreSQL via [Supabase](https://supabase.com) |
+| Auth | [Supabase](https://supabase.com) (SSR, role-based auth) |
 | AI Orchestration | [Backboard.io](https://backboard.io) |
 | Icons | [Lucide React](https://lucide.dev) |
 
@@ -72,21 +72,42 @@ All AI orchestration is handled by **Backboard.io** agents:
 
 ## 📁 Project Structure
 
+This is a monorepo with separate `frontend` and `backend` packages.
+
 ```
 farmesh/
-├── app/                    # Next.js App Router — pages and API routes
-│   ├── (farmer)/           # Farmer dashboard pages
-│   ├── (buyer)/            # Buyer dashboard pages
-│   ├── (admin)/            # Admin/demo dashboard pages
-│   └── api/                # API route handlers
-├── components/             # Shared UI components
-├── data/                   # Seed data (Canadian vendors, buyers, listings, requests)
-├── lib/                    # Utilities, Prisma client, Backboard.io client, matching logic
-├── types/                  # TypeScript type definitions
-├── middleware.ts            # Role-based route protection (Supabase SSR)
-├── next.config.ts
-├── postcss.config.mjs
-└── package.json
+├── frontend/                   # Next.js application
+│   ├── app/                    # Next.js App Router — pages and API routes
+│   │   ├── actions/            # Server actions
+│   │   ├── api/                # API route handlers
+│   │   ├── auth/               # Auth pages
+│   │   ├── buyer/              # Buyer dashboard pages
+│   │   ├── farmer/             # Farmer dashboard pages
+│   │   ├── layout.tsx          # Root layout
+│   │   └── page.tsx            # Landing / home page
+│   ├── components/             # Shared UI components
+│   ├── data/                   # Seed data (Canadian vendors, buyers, listings, requests)
+│   ├── lib/                    # Utilities and service clients
+│   │   ├── auth.ts             # Auth helpers
+│   │   ├── db.ts               # Database access layer
+│   │   ├── listings.ts         # Listing helpers
+│   │   ├── matchingPipeline.ts # AI matching logic
+│   │   ├── requests.ts         # Request helpers
+│   │   ├── supabase.ts         # Supabase client
+│   │   └── supabase/           # Supabase SSR helpers
+│   ├── types/                  # TypeScript type definitions
+│   ├── middleware.ts            # Role-based route protection (Supabase SSR)
+│   ├── next.config.ts
+│   ├── postcss.config.mjs
+│   └── eslint.config.mjs
+├── backend/                    # Backend services (AI agents, data, SQL)
+│   ├── src/
+│   │   └── agents/             # AI agent implementations
+│   ├── data/                   # Backend seed / reference data
+│   ├── sql/                    # SQL migrations and schema
+│   └── README.md
+├── package.json                # Root workspace package
+└── package-lock.json
 ```
 
 ---
@@ -188,15 +209,12 @@ npm install
 
 ### 3. Set up environment variables
 
-Create a `.env.local` file in the project root:
+Create a `.env.local` file inside the `frontend/` directory:
 
 ```env
 # Supabase
 NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your_supabase_anon_key
-
-# Database (PostgreSQL via Prisma)
-DATABASE_URL=your_postgresql_connection_string
 
 # Backboard.io
 BACKBOARD_API_KEY=your_backboard_api_key
@@ -205,33 +223,14 @@ BACKBOARD_WORKFLOW_URL=your_backboard_workflow_endpoint
 
 > See the Keys document for full details on obtaining these values.
 
-### 4. Set up the database
+### 4. Run the development server
 
 ```bash
-npx prisma migrate dev --name init
-npx prisma db seed
-```
-
-### 5. Run the development server
-
-```bash
+cd frontend
 npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) in your browser.
-
----
-
-## 🗂️ Build Priority
-
-1. Prisma schema + Canadian seed data
-2. Basic farmer / buyer / admin pages
-3. Listings + requests CRUD
-4. AI parsing and normalization preview
-5. Matching logic with split proposal + local prioritization
-6. Coordination / status updates
-7. Admin timeline and memory visibility
-8. UI polish
 
 ---
 
