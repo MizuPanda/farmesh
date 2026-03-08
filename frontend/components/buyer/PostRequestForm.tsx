@@ -35,6 +35,7 @@ export default function PostRequestForm({ onClose }: PostRequestFormProps) {
                         { label: "Product", type: "text", placeholder: "e.g. Salad Greens" },
                         { label: "Quantity needed", type: "number", placeholder: "100" },
                         { label: "Unit", type: "text", placeholder: "lb" },
+                        { label: "Price per unit", type: "number", placeholder: "5.00" },
                         { label: "Required by", type: "text", placeholder: "e.g. Friday" },
                     ].map(({ label, type, placeholder }) => (
                         <div key={label}>
