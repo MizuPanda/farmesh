@@ -4,6 +4,32 @@ export type MatchStatus =
     | "CONFIRMED"
     | "REJECTED";
 
+export type MatchPartyDetails = {
+    id: string;
+    name: string | null;
+    email: string | null;
+    businessName: string | null;
+    phone: string | null;
+};
+
+export type MatchListingDetails = {
+    id: string;
+    vendorId: string;
+    product: string;
+    quantity: number;
+    unit: string;
+    pricePerUnit: number;
+};
+
+export type MatchRequestDetails = {
+    id: string;
+    buyerId: string;
+    product: string;
+    quantity: number;
+    unit: string;
+    pricePerUnit: number;
+};
+
 export type Match = {
     id: string;
     listingId: string;
@@ -13,4 +39,8 @@ export type Match = {
     reason: string;
     status: MatchStatus;
     createdAt: string;
+    vendor?: MatchPartyDetails | null;
+    buyer?: MatchPartyDetails | null;
+    listing?: MatchListingDetails | null;
+    request?: MatchRequestDetails | null;
 };

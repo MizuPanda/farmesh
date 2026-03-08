@@ -3,11 +3,21 @@ export type RequestStatus = "OPEN" | "MATCHED";
 export type Request = {
     id: string;
     buyerId: string;
-    rawInput: string;
+    rawInput?: string;
     product: string;
     pricePerUnit: number;
     quantity: number;
     unit: string;
     status: RequestStatus;
-    createdAt: string;
+    createdAt?: string;
+    neededDate?: string;
+
+    // Normalized fields persisted in Supabase.
+    normalizedProduct?: string | null;
+    productCategory?: string | null;
+    unitFamily?: "weight" | "count" | null;
+    canonicalQuantity?: number | null;
+    canonicalUnit?: "kg" | "piece" | null;
+    canonicalPricePerCanonicalUnit?: number | null;
+    assumptions?: string[];
 };

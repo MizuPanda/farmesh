@@ -1,11 +1,85 @@
+"use client";
+
+import { useState } from "react";
 import type { Match } from "@/types";
 import StatusBadge from "@/components/layout/StatusBadge";
 
-type FarmerMatchCardProps = {
-    match: Match;
+type MatchInsights = {
+    summary: string;
+    detail: string;
+    metrics: Array<{ label: string; value: string }>;
+    history: string[];
+    recommendations: string[];
+    risks: string[];
 };
 
-export default function FarmerMatchCard({ match }: FarmerMatchCardProps) {
+type FarmerMatchCardProps = {
+    match: Match;
+    onDecline?: (match: Match) => Promise<void>;
+};
+
+export default function FarmerMatchCard({ match, onDecline }: FarmerMatchCardProps) {
+    const [showDetails, setShowDetails] = useState(false);
+    const [insights, setInsights] = useState<MatchInsights | null>(null);
+    const [loadingInsights, setLoadingInsights] = useState(false);
+    const [insightError, setInsightError] = useState<string | null>(null);
+    const [declining, setDeclining] = useState(false);
+
+    const buyerName = match.buyer?.name ?? "Unknown Buyer";
+    const buyerBusiness = match.buyer?.businessName ?? null;
+    const buyerPhone = match.buyer?.phone ?? null;
+    const buyerEmail = match.buyer?.email ?? null;
+    const requestProduct = match.request?.product ?? match.product;
+    const requestQuantity = match.request ? `${match.request.quantity} ${match.request.unit}` : null;
+    const requestPrice = match.request
+        ? `$${match.request.pricePerUnit.toFixed(2)} / ${match.request.unit}`
+        : null;
+
+    const loadInsights = async () => {
+        if (loadingInsights || insights) return;
+        setLoadingInsights(true);
+        setInsightError(null);
+
+        try {
+            const response = await fetch(`/api/matches/${match.id}/insights?viewer=farmer`, {
+                cache: "no-store",
+            });
+
+            if (!response.ok) {
+                const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+                throw new Error(payload?.error ?? "Failed to load match details.");
+            }
+
+            const payload = (await response.json()) as MatchInsights;
+            setInsights(payload);
+        } catch (error) {
+            setInsightError(error instanceof Error ? error.message : "Failed to load details.");
+        } finally {
+            setLoadingInsights(false);
+        }
+    };
+
+    const toggleDetails = async () => {
+        if (showDetails) {
+            setShowDetails(false);
+            return;
+        }
+
+        setShowDetails(true);
+        await loadInsights();
+    };
+
+    const handleDecline = async () => {
+        if (!onDecline || declining) return;
+
+        try {
+            setDeclining(true);
+            await onDecline(match);
+        } finally {
+            setDeclining(false);
+        }
+    };
+
     return (
         <div
             className="hover-lift flex flex-col border p-6 transition-all duration-400"
@@ -18,7 +92,7 @@ export default function FarmerMatchCard({ match }: FarmerMatchCardProps) {
                         {match.product}
                     </h3>
                     <p className="mt-0.5 text-[11px] tracking-[0.1em] uppercase" style={{ color: "var(--text-subtle)" }}>
-                        vs. Request #{match.requestId}
+                        Matched Buyer Demand
                     </p>
                 </div>
                 <StatusBadge status={match.status} />
@@ -45,21 +119,128 @@ export default function FarmerMatchCard({ match }: FarmerMatchCardProps) {
                 {match.reason}
             </p>
 
-            {/* Your contribution */}
-            <div
-                className="mb-5 border-l-2 border-green-600 px-4 py-3"
-                style={{ backgroundColor: "var(--surface-base)" }}
-            >
-                <p className="text-[11px] font-semibold tracking-[0.15em] uppercase text-green-700">
-                    Your contribution
-                </p>
-                <p className="mt-1 text-sm" style={{ color: "var(--foreground)" }}>
-                    Listing #{match.listingId} — {match.product}
-                </p>
-            </div>
+            {!showDetails && (
+                <>
+                    {/* Buyer details */}
+                    <div className="mb-5">
+                        <p className="mb-2 text-[11px] font-semibold tracking-[0.15em] uppercase" style={{ color: "var(--text-muted)" }}>
+                            Buyer details
+                        </p>
+                        <div
+                            className="border px-4 py-3 text-sm"
+                            style={{ borderColor: "var(--border-soft)", backgroundColor: "var(--surface-base)", color: "var(--text-muted)" }}
+                        >
+                            <p className="font-semibold" style={{ color: "var(--foreground)" }}>
+                                {buyerName}
+                            </p>
+                            {buyerBusiness && <p>Business: {buyerBusiness}</p>}
+                            {buyerPhone && <p>Phone: {buyerPhone}</p>}
+                            {buyerEmail && <p>Email: {buyerEmail}</p>}
+                            <p className="mt-2">
+                                Requested Product: {requestProduct}
+                            </p>
+                            {requestQuantity && <p>Needed: {requestQuantity}</p>}
+                            {requestPrice && <p>Target price: {requestPrice}</p>}
+                        </div>
+                    </div>
+
+                    {/* Your contribution */}
+                    <div
+                        className="mb-5 border-l-2 border-green-600 px-4 py-3"
+                        style={{ backgroundColor: "var(--surface-base)" }}
+                    >
+                        <p className="text-[11px] font-semibold tracking-[0.15em] uppercase text-green-700">
+                            Your contribution
+                        </p>
+                        <p className="mt-1 text-sm" style={{ color: "var(--foreground)" }}>
+                            Product Offered: {match.product}
+                        </p>
+                    </div>
+                </>
+            )}
+
+            {showDetails && (
+                <div className="mb-5 space-y-4">
+                    <div
+                        className="border p-4"
+                        style={{ borderColor: "var(--border-soft)", backgroundColor: "var(--surface-base)" }}
+                    >
+                        {loadingInsights && (
+                            <p className="text-sm" style={{ color: "var(--text-muted)" }}>
+                                Generating coordination insights...
+                            </p>
+                        )}
+                        {insightError && (
+                            <p className="text-sm text-red-600">{insightError}</p>
+                        )}
+                        {!loadingInsights && !insightError && insights && (
+                            <div className="space-y-4">
+                                <div>
+                                    <p className="text-[11px] font-semibold tracking-[0.15em] uppercase text-green-700">
+                                        Coordination Summary
+                                    </p>
+                                    <p className="mt-1 text-sm leading-relaxed" style={{ color: "var(--text-muted)" }}>
+                                        {insights.summary}
+                                    </p>
+                                    <p className="mt-2 text-sm leading-relaxed" style={{ color: "var(--text-subtle)" }}>
+                                        {insights.detail}
+                                    </p>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-3">
+                                    {insights.metrics.map((metric) => (
+                                        <div key={metric.label} className="border px-3 py-2" style={{ borderColor: "var(--border-subtle)" }}>
+                                            <p className="text-[10px] font-semibold tracking-[0.12em] uppercase" style={{ color: "var(--text-faint)" }}>
+                                                {metric.label}
+                                            </p>
+                                            <p className="mt-1 text-sm font-semibold" style={{ color: "var(--foreground)" }}>
+                                                {metric.value}
+                                            </p>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                <div>
+                                    <p className="text-[11px] font-semibold tracking-[0.15em] uppercase" style={{ color: "var(--text-muted)" }}>
+                                        Match history
+                                    </p>
+                                    <ul className="mt-2 space-y-1 text-sm" style={{ color: "var(--text-muted)" }}>
+                                        {insights.history.map((entry) => (
+                                            <li key={entry}>• {entry}</li>
+                                        ))}
+                                    </ul>
+                                </div>
+
+                                <div className="grid gap-3 md:grid-cols-2">
+                                    <div>
+                                        <p className="text-[11px] font-semibold tracking-[0.15em] uppercase text-green-700">
+                                            Recommended actions
+                                        </p>
+                                        <ul className="mt-2 space-y-1 text-sm" style={{ color: "var(--text-muted)" }}>
+                                            {insights.recommendations.map((entry) => (
+                                                <li key={entry}>• {entry}</li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                    <div>
+                                        <p className="text-[11px] font-semibold tracking-[0.15em] uppercase text-amber-700">
+                                            Risk checks
+                                        </p>
+                                        <ul className="mt-2 space-y-1 text-sm" style={{ color: "var(--text-muted)" }}>
+                                            {insights.risks.map((entry) => (
+                                                <li key={entry}>• {entry}</li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
 
             {/* Action buttons */}
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
                 <button
                     type="button"
                     className="bg-green-600 px-5 py-2.5 text-xs font-semibold tracking-[0.12em] uppercase text-white transition-colors duration-300 hover:bg-green-700"
@@ -68,10 +249,20 @@ export default function FarmerMatchCard({ match }: FarmerMatchCardProps) {
                 </button>
                 <button
                     type="button"
+                    onClick={() => void toggleDetails()}
                     className="border px-5 py-2.5 text-xs font-semibold tracking-[0.12em] uppercase transition-colors duration-300"
                     style={{ borderColor: "var(--border-default)", color: "var(--text-muted)" }}
                 >
-                    View Details
+                    {showDetails ? "Back to Summary" : "View Details"}
+                </button>
+                <button
+                    type="button"
+                    onClick={() => void handleDecline()}
+                    disabled={declining || !onDecline}
+                    className="border px-5 py-2.5 text-xs font-semibold tracking-[0.12em] uppercase transition-colors duration-300 disabled:opacity-60"
+                    style={{ borderColor: "#fecaca", color: "#b91c1c" }}
+                >
+                    {declining ? "Declining..." : "Decline"}
                 </button>
             </div>
         </div>
