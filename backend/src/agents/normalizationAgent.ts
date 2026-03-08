@@ -6,7 +6,7 @@ import type {
   NormalizedRequest,
   CanonicalUnit,
   UnitFamily,
-} from "@/types";
+} from "../../../frontend/types";
 
 const NORMALIZATION_MODEL =
   process.env.NORMALIZATION_MODEL ?? process.env.MATCHING_MODEL ?? "gemini-2.5-flash";
@@ -52,11 +52,11 @@ NORMALIZATION RULES
   - If missing critical info, return null for unavailable canonical fields and explain in assumptions.
 
 OUTPUT CONTRACT
-Respond with valid JSON only:
-{
-  "normalizedListings": NormalizedListing[],
-  "normalizedRequests": NormalizedRequest[]
-}
+- Respond with valid JSON only.
+- Return one top-level object with exactly two keys:
+  - "normalizedListings": array aligned by index to input listings.
+  - "normalizedRequests": array aligned by index to input requests.
+- If listings or requests input is empty, return an empty array for that key.
 
 CRITICAL FORMATTING:
 - JSON only (no markdown, no surrounding prose).
@@ -66,7 +66,7 @@ CRITICAL FORMATTING:
   - every key must be double-quoted
   - every string must be double-quoted
   - no single quotes
-  - no trailing commas
+- no trailing commas
 `;
 
 const DEFAULT_PRODUCT_CATEGORY = "EMPTY";
@@ -75,6 +75,11 @@ type NormalizationResult = {
   normalizedListings: unknown[];
   normalizedRequests: unknown[];
 };
+
+function escapePromptTemplateBraces(prompt: string): string {
+  // Backboard/LangChain treats single braces as template variables.
+  return prompt.replace(/{/g, "{{").replace(/}/g, "}}");
+}
 
 function toNullableNumber(value: unknown): number | null {
   if (typeof value === "number" && Number.isFinite(value)) return value;
@@ -223,31 +228,31 @@ function parseNormalizationResponseContent(content: string): Partial<Normalizati
   );
 }
 
-function getFallbackListings(listings: Listing[]): NormalizedListing[] {
-  return listings.map((listing) => ({
-    ...listing,
-    normalizedProduct: listing.product,
-    productCategory: DEFAULT_PRODUCT_CATEGORY,
-    unitFamily: null,
-    canonicalQuantity: null,
-    canonicalUnit: null,
-    canonicalPricePerCanonicalUnit: null,
-    assumptions: ["Normalization agent fallback used."],
-  }));
-}
+// function getFallbackListings(listings: Listing[]): NormalizedListing[] {
+//   return listings.map((listing) => ({
+//     ...listing,
+//     normalizedProduct: listing.product,
+//     productCategory: DEFAULT_PRODUCT_CATEGORY,
+//     unitFamily: null,
+//     canonicalQuantity: null,
+//     canonicalUnit: null,
+//     canonicalPricePerCanonicalUnit: null,
+//     assumptions: ["Normalization agent fallback used."],
+//   }));
+// }
 
-function getFallbackRequests(requests: Request[]): NormalizedRequest[] {
-  return requests.map((request) => ({
-    ...request,
-    normalizedProduct: request.product,
-    productCategory: DEFAULT_PRODUCT_CATEGORY,
-    unitFamily: null,
-    canonicalQuantity: null,
-    canonicalUnit: null,
-    canonicalPricePerCanonicalUnit: null,
-    assumptions: ["Normalization agent fallback used."],
-  }));
-}
+// function getFallbackRequests(requests: Request[]): NormalizedRequest[] {
+//   return requests.map((request) => ({
+//     ...request,
+//     normalizedProduct: request.product,
+//     productCategory: DEFAULT_PRODUCT_CATEGORY,
+//     unitFamily: null,
+//     canonicalQuantity: null,
+//     canonicalUnit: null,
+//     canonicalPricePerCanonicalUnit: null,
+//     assumptions: ["Normalization agent fallback used."],
+//   }));
+// }
 
 export async function normalizeForMatching(params: {
   listings: Listing[];
@@ -264,15 +269,17 @@ export async function normalizeForMatching(params: {
   const client = new BackboardClient({ apiKey });
   const assistant = await client.createAssistant({
     name: "Farmesh Normalization Agent",
-    system_prompt: NORMALIZATION_SYSTEM_PROMPT,
+    system_prompt: escapePromptTemplateBraces(NORMALIZATION_SYSTEM_PROMPT),
   });
   const thread = await client.createThread(assistant.assistantId);
 
-  const fallbackListings = getFallbackListings(params.listings);
-  const fallbackRequests = getFallbackRequests(params.requests);
+  // const fallbackListings = getFallbackListings(params.listings);
+  // const fallbackRequests = getFallbackRequests(params.requests);
 
-  let normalizedListings = fallbackListings;
-  let normalizedRequests = fallbackRequests;
+  // let normalizedListings = fallbackListings;
+  // let normalizedRequests = fallbackRequests;
+  let normalizedListings: NormalizedListing[] = [];
+  let normalizedRequests: NormalizedRequest[] = [];
 
   try {
     const response = (await client.addMessage(thread.threadId, {
@@ -287,6 +294,7 @@ export async function normalizeForMatching(params: {
     })) as MessageResponse;
 
     if (response.content) {
+      console.log("Normalization response content:", response.content);
       try {
         const parsed = parseNormalizationResponseContent(response.content);
 

@@ -49,13 +49,22 @@ export default function FarmerDashboard() {
     ])) as [Listing[], Match[]];
 
     setListings(listingData);
-    setMatches(matchData);
+    setMatches(matchData.filter((match) => match.status !== "REJECTED"));
   }, []);
 
   const refreshData = useCallback(async () => {
     if (!vendorId) return;
     await fetchDashboardData(vendorId);
   }, [fetchDashboardData, vendorId]);
+
+  const notifyDashboardAction = useCallback((message: string) => {
+    window.dispatchEvent(
+      new CustomEvent("farmesh:notification", {
+        detail: { message },
+      })
+    );
+    window.dispatchEvent(new Event("farmesh:data-updated"));
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -129,6 +138,70 @@ export default function FarmerDashboard() {
 
   const activeCount = listings.filter((listing) => listing.status === "OPEN").length;
   const matchedCount = listings.filter((listing) => listing.status === "MATCHED").length;
+
+  const handleDeleteListing = useCallback(
+    async (listing: Listing) => {
+      setStatusMessage(null);
+
+      try {
+        const response = await fetch(`/api/listings/${listing.id}`, {
+          method: "DELETE",
+        });
+
+        if (!response.ok) {
+          const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+          throw new Error(payload?.error ?? "Failed to delete listing.");
+        }
+
+        const payload = (await response.json()) as { removedMatches?: number };
+        setListings((previous) => previous.filter((item) => item.id !== listing.id));
+        setMatches((previous) => previous.filter((item) => item.listingId !== listing.id));
+
+        const removedMatches = payload.removedMatches ?? 0;
+        const message =
+          removedMatches > 0
+            ? `Deleted listing ${listing.product}. ${removedMatches} related match(es) were removed.`
+            : `Deleted listing ${listing.product}.`;
+
+        setStatusMessage(message);
+        notifyDashboardAction(message);
+        await refreshData();
+      } catch (error) {
+        setStatusMessage(error instanceof Error ? error.message : "Failed to delete listing.");
+      }
+    },
+    [notifyDashboardAction, refreshData]
+  );
+
+  const handleDeclineMatch = useCallback(
+    async (match: Match) => {
+      setStatusMessage(null);
+
+      try {
+        const response = await fetch(`/api/matches/${match.id}`, {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ status: "REJECTED" }),
+        });
+
+        if (!response.ok) {
+          const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+          throw new Error(payload?.error ?? "Failed to decline match.");
+        }
+
+        setMatches((previous) => previous.filter((item) => item.id !== match.id));
+        const message = `Declined match for ${match.product}.`;
+        setStatusMessage(message);
+        notifyDashboardAction(message);
+        await refreshData();
+      } catch (error) {
+        setStatusMessage(error instanceof Error ? error.message : "Failed to decline match.");
+      }
+    },
+    [notifyDashboardAction, refreshData]
+  );
 
   const statCard = (icon: React.ReactNode, label: string, value: number, sub: string) => (
     <div
@@ -234,7 +307,12 @@ export default function FarmerDashboard() {
         <div className="mt-6">
           {loading && <p style={{ color: "var(--text-muted)" }}>Loading...</p>}
 
-          {!loading && activeTab === "listings" && <ListingsTable listings={listings} />}
+          {!loading && activeTab === "listings" && (
+            <ListingsTable
+              listings={listings}
+              onDeleteListing={handleDeleteListing}
+            />
+          )}
 
           {!loading && activeTab === "matches" && (
             <div className="grid gap-4 stagger-children">
@@ -244,7 +322,11 @@ export default function FarmerDashboard() {
                 </p>
               )}
               {matches.map((match) => (
-                <FarmerMatchCard key={match.id} match={match} />
+                <FarmerMatchCard
+                  key={match.id}
+                  match={match}
+                  onDecline={handleDeclineMatch}
+                />
               ))}
             </div>
           )}

@@ -49,13 +49,22 @@ export default function BuyerDashboard() {
     ])) as [Request[], Match[]];
 
     setRequests(requestData);
-    setMatches(matchData);
+    setMatches(matchData.filter((match) => match.status !== "REJECTED"));
   }, []);
 
   const refreshData = useCallback(async () => {
     if (!buyerId) return;
     await fetchDashboardData(buyerId);
   }, [buyerId, fetchDashboardData]);
+
+  const notifyDashboardAction = useCallback((message: string) => {
+    window.dispatchEvent(
+      new CustomEvent("farmesh:notification", {
+        detail: { message },
+      })
+    );
+    window.dispatchEvent(new Event("farmesh:data-updated"));
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -129,6 +138,70 @@ export default function BuyerDashboard() {
 
   const openCount = requests.filter((request) => request.status === "OPEN").length;
   const proposedCount = matches.filter((match) => match.status === "PROPOSED").length;
+
+  const handleDeleteRequest = useCallback(
+    async (request: Request) => {
+      setStatusMessage(null);
+
+      try {
+        const response = await fetch(`/api/requests/${request.id}`, {
+          method: "DELETE",
+        });
+
+        if (!response.ok) {
+          const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+          throw new Error(payload?.error ?? "Failed to delete request.");
+        }
+
+        const payload = (await response.json()) as { removedMatches?: number };
+        setRequests((previous) => previous.filter((item) => item.id !== request.id));
+        setMatches((previous) => previous.filter((item) => item.requestId !== request.id));
+
+        const removedMatches = payload.removedMatches ?? 0;
+        const message =
+          removedMatches > 0
+            ? `Deleted request ${request.product}. ${removedMatches} related match(es) were removed.`
+            : `Deleted request ${request.product}.`;
+
+        setStatusMessage(message);
+        notifyDashboardAction(message);
+        await refreshData();
+      } catch (error) {
+        setStatusMessage(error instanceof Error ? error.message : "Failed to delete request.");
+      }
+    },
+    [notifyDashboardAction, refreshData]
+  );
+
+  const handleDeclineMatch = useCallback(
+    async (match: Match) => {
+      setStatusMessage(null);
+
+      try {
+        const response = await fetch(`/api/matches/${match.id}`, {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ status: "REJECTED" }),
+        });
+
+        if (!response.ok) {
+          const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+          throw new Error(payload?.error ?? "Failed to decline match.");
+        }
+
+        setMatches((previous) => previous.filter((item) => item.id !== match.id));
+        const message = `Declined match for ${match.product}.`;
+        setStatusMessage(message);
+        notifyDashboardAction(message);
+        await refreshData();
+      } catch (error) {
+        setStatusMessage(error instanceof Error ? error.message : "Failed to decline match.");
+      }
+    },
+    [notifyDashboardAction, refreshData]
+  );
 
   const statCard = (icon: React.ReactNode, label: string, value: number, sub: string) => (
     <div
@@ -239,7 +312,12 @@ export default function BuyerDashboard() {
         <div className="mt-6">
           {loading && <p style={{ color: "var(--text-muted)" }}>Loading...</p>}
 
-          {!loading && activeTab === "requests" && <RequestsTable requests={requests} />}
+          {!loading && activeTab === "requests" && (
+            <RequestsTable
+              requests={requests}
+              onDeleteRequest={handleDeleteRequest}
+            />
+          )}
 
           {!loading && activeTab === "matches" && (
             <div className="grid gap-4 stagger-children">
@@ -249,7 +327,12 @@ export default function BuyerDashboard() {
                 </p>
               )}
               {matches.map((match, index) => (
-                <BuyerMatchCard key={match.id} match={match} recommended={index === 0} />
+                <BuyerMatchCard
+                  key={match.id}
+                  match={match}
+                  recommended={index === 0}
+                  onDecline={handleDeclineMatch}
+                />
               ))}
             </div>
           )}

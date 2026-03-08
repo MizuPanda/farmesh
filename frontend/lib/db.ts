@@ -97,6 +97,12 @@ type MatchRow = {
   created_at: string;
 };
 
+const ACTIVE_MATCH_STATUSES: MatchStatus[] = [
+  "PROPOSED",
+  "AWAITING_CONFIRMATION",
+  "CONFIRMED",
+];
+
 type ListingMatchDetailsRow = {
   id: string;
   vendor_id: string;
@@ -360,6 +366,19 @@ export async function getListingsByVendor(vendorId: string): Promise<Listing[]> 
   return (data ?? []).map((row) => mapListingRow(row as ListingRow));
 }
 
+export async function getListingById(id: string): Promise<Listing | null> {
+  const supabase = await getDbClient();
+  const { data, error } = await supabase
+    .from("listings")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (error) throw new Error(`Failed to fetch listing ${id}: ${error.message}`);
+  if (!data) return null;
+  return mapListingRow(data as ListingRow);
+}
+
 export async function insertListing(listing: Listing | NormalizedListing): Promise<Listing> {
   const supabase = await getDbClient();
   const { data, error } = await supabase
@@ -370,6 +389,39 @@ export async function insertListing(listing: Listing | NormalizedListing): Promi
 
   if (error) throw new Error(`Failed to insert listing: ${error.message}`);
   return mapListingRow(data as ListingRow);
+}
+
+export async function deleteMatchesByListingId(listingId: string): Promise<{
+  count: number;
+  requestIds: string[];
+}> {
+  const supabase = await getDbClient();
+  const { data, error } = await supabase
+    .from("matches")
+    .delete()
+    .eq("listing_id", listingId)
+    .select("request_id");
+
+  if (error) throw new Error(`Failed to delete matches for listing ${listingId}: ${error.message}`);
+  const requestIds = [
+    ...new Set(
+      (data ?? [])
+        .map((row) => row.request_id)
+        .filter((value): value is string => typeof value === "string")
+    ),
+  ];
+
+  return {
+    count: (data ?? []).length,
+    requestIds,
+  };
+}
+
+export async function deleteListingById(id: string): Promise<void> {
+  const supabase = await getDbClient();
+  const { error } = await supabase.from("listings").delete().eq("id", id);
+
+  if (error) throw new Error(`Failed to delete listing ${id}: ${error.message}`);
 }
 
 export async function updateListingStatus(
@@ -439,6 +491,19 @@ export async function getRequestsByBuyer(buyerId: string): Promise<Request[]> {
   return (data ?? []).map((row) => mapRequestRow(row as RequestRow));
 }
 
+export async function getRequestById(id: string): Promise<Request | null> {
+  const supabase = await getDbClient();
+  const { data, error } = await supabase
+    .from("requests")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (error) throw new Error(`Failed to fetch request ${id}: ${error.message}`);
+  if (!data) return null;
+  return mapRequestRow(data as RequestRow);
+}
+
 export async function insertRequest(request: Request | NormalizedRequest): Promise<Request> {
   const supabase = await getDbClient();
   const { data, error } = await supabase
@@ -449,6 +514,39 @@ export async function insertRequest(request: Request | NormalizedRequest): Promi
 
   if (error) throw new Error(`Failed to insert request: ${error.message}`);
   return mapRequestRow(data as RequestRow);
+}
+
+export async function deleteMatchesByRequestId(requestId: string): Promise<{
+  count: number;
+  listingIds: string[];
+}> {
+  const supabase = await getDbClient();
+  const { data, error } = await supabase
+    .from("matches")
+    .delete()
+    .eq("request_id", requestId)
+    .select("listing_id");
+
+  if (error) throw new Error(`Failed to delete matches for request ${requestId}: ${error.message}`);
+  const listingIds = [
+    ...new Set(
+      (data ?? [])
+        .map((row) => row.listing_id)
+        .filter((value): value is string => typeof value === "string")
+    ),
+  ];
+
+  return {
+    count: (data ?? []).length,
+    listingIds,
+  };
+}
+
+export async function deleteRequestById(id: string): Promise<void> {
+  const supabase = await getDbClient();
+  const { error } = await supabase.from("requests").delete().eq("id", id);
+
+  if (error) throw new Error(`Failed to delete request ${id}: ${error.message}`);
 }
 
 export async function updateRequestStatus(
@@ -507,6 +605,21 @@ export async function getMatches(): Promise<Match[]> {
 export async function getMatchesWithDetails(): Promise<Match[]> {
   const matches = await getMatches();
   return enrichMatches(matches);
+}
+
+export async function getMatchByIdWithDetails(id: string): Promise<Match | null> {
+  const supabase = await getDbClient();
+  const { data, error } = await supabase
+    .from("matches")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (error) throw new Error(`Failed to fetch match ${id}: ${error.message}`);
+  if (!data) return null;
+
+  const [match] = await enrichMatches([mapMatchRow(data as MatchRow)]);
+  return match ?? null;
 }
 
 export async function getMatchesByVendor(vendorId: string): Promise<Match[]> {
@@ -604,4 +717,37 @@ export async function updateMatchStatus(
   const { error } = await supabase.from("matches").update({ status }).eq("id", id);
 
   if (error) throw new Error(`Failed to update match ${id}: ${error.message}`);
+}
+
+export async function deleteMatchById(id: string): Promise<void> {
+  const supabase = await getDbClient();
+  const { error } = await supabase.from("matches").delete().eq("id", id);
+
+  if (error) throw new Error(`Failed to delete match ${id}: ${error.message}`);
+}
+
+export async function hasActiveMatchesForListing(listingId: string): Promise<boolean> {
+  const supabase = await getDbClient();
+  const { data, error } = await supabase
+    .from("matches")
+    .select("id")
+    .eq("listing_id", listingId)
+    .in("status", ACTIVE_MATCH_STATUSES)
+    .limit(1);
+
+  if (error) throw new Error(`Failed to check active matches for listing ${listingId}: ${error.message}`);
+  return (data ?? []).length > 0;
+}
+
+export async function hasActiveMatchesForRequest(requestId: string): Promise<boolean> {
+  const supabase = await getDbClient();
+  const { data, error } = await supabase
+    .from("matches")
+    .select("id")
+    .eq("request_id", requestId)
+    .in("status", ACTIVE_MATCH_STATUSES)
+    .limit(1);
+
+  if (error) throw new Error(`Failed to check active matches for request ${requestId}: ${error.message}`);
+  return (data ?? []).length > 0;
 }

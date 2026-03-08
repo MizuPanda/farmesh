@@ -19,6 +19,12 @@ type RuntimeNotification = {
   read: boolean;
 };
 
+type RuntimeNotificationEventDetail = {
+  id?: string;
+  message: string;
+  createdAt?: string;
+};
+
 type EntitySnapshot = Record<
   string,
   {
@@ -33,6 +39,10 @@ type NotificationSnapshot = {
   listings: EntitySnapshot;
   requests: EntitySnapshot;
 };
+
+const NOTIFICATION_POLL_MS = 60_000;
+const CHECK_THROTTLE_MS = 8_000;
+const FORCE_CHECK_THROTTLE_MS = 1_000;
 
 function getNotificationKey(userId: string) {
   return `farmesh:notifications:${userId}`;
@@ -87,6 +97,8 @@ export default function AppNav({ unreadCount = 0 }: AppNavProps) {
   const [panelOpen, setPanelOpen] = useState(false);
   const pathname = usePathname();
   const snapshotRef = useRef<NotificationSnapshot | null>(null);
+  const inFlightCheckRef = useRef<Promise<void> | null>(null);
+  const lastCheckAtRef = useRef(0);
 
   const persistNotifications = useCallback((userId: string, items: RuntimeNotification[]) => {
     localStorage.setItem(getNotificationKey(userId), JSON.stringify(items.slice(0, 40)));
@@ -95,6 +107,35 @@ export default function AppNav({ unreadCount = 0 }: AppNavProps) {
   const persistSnapshot = useCallback((userId: string, snapshot: NotificationSnapshot) => {
     localStorage.setItem(getSnapshotKey(userId), JSON.stringify(snapshot));
   }, []);
+
+  const pushRuntimeNotification = useCallback(
+    (currentUser: User, detail: RuntimeNotificationEventDetail) => {
+      const message = detail.message?.trim();
+      if (!message) return;
+
+      const createdAt = detail.createdAt ?? new Date().toISOString();
+      const id =
+        detail.id ??
+        `runtime:${currentUser.id}:${message.slice(0, 24)}:${createdAt}`;
+
+      setNotifications((previous) => {
+        if (previous.some((item) => item.id === id)) return previous;
+        const next = [
+          {
+            id,
+            message,
+            createdAt,
+            read: false,
+          },
+          ...previous,
+        ].slice(0, 40);
+
+        persistNotifications(currentUser.id, next);
+        return next;
+      });
+    },
+    [persistNotifications]
+  );
 
   const fetchCurrentSnapshot = useCallback(async (currentUser: User): Promise<NotificationSnapshot> => {
     if (currentUser.type === "farmer") {
@@ -221,6 +262,35 @@ export default function AppNav({ unreadCount = 0 }: AppNavProps) {
     [persistNotifications]
   );
 
+  const runNotificationCheck = useCallback(
+    (currentUser: User, options?: { force?: boolean }) => {
+      const force = options?.force ?? false;
+      const now = Date.now();
+      const throttleWindow = force ? FORCE_CHECK_THROTTLE_MS : CHECK_THROTTLE_MS;
+
+      if (now - lastCheckAtRef.current < throttleWindow) {
+        return inFlightCheckRef.current ?? Promise.resolve();
+      }
+
+      if (inFlightCheckRef.current) {
+        return inFlightCheckRef.current;
+      }
+
+      const task = (async () => {
+        try {
+          await checkForNotificationUpdates(currentUser);
+        } finally {
+          lastCheckAtRef.current = Date.now();
+          inFlightCheckRef.current = null;
+        }
+      })();
+
+      inFlightCheckRef.current = task;
+      return task;
+    },
+    [checkForNotificationUpdates]
+  );
+
   useEffect(() => {
     let active = true;
 
@@ -270,26 +340,51 @@ export default function AppNav({ unreadCount = 0 }: AppNavProps) {
   useEffect(() => {
     if (!user) return;
 
-    const timeoutId = window.setTimeout(() => {
-      void checkForNotificationUpdates(user);
-    }, 0);
+    const isOnRoleDashboard =
+      (user.type === "buyer" && pathname === "/buyer") ||
+      (user.type === "farmer" && pathname === "/farmer");
 
     const intervalId = window.setInterval(() => {
-      void checkForNotificationUpdates(user);
-    }, 12000);
+      if (document.visibilityState !== "visible") return;
+      void runNotificationCheck(user);
+    }, NOTIFICATION_POLL_MS);
+
+    if (!isOnRoleDashboard && document.visibilityState === "visible") {
+      void runNotificationCheck(user);
+    }
 
     const refreshNotifications = () => {
-      void checkForNotificationUpdates(user);
+      void runNotificationCheck(user, { force: true });
+    };
+
+    const handleRuntimeNotification = (event: Event) => {
+      const customEvent = event as CustomEvent<RuntimeNotificationEventDetail>;
+      if (!customEvent.detail || typeof customEvent.detail.message !== "string") return;
+      pushRuntimeNotification(user, customEvent.detail);
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState !== "visible") return;
+      void runNotificationCheck(user);
     };
 
     window.addEventListener("farmesh:data-updated", refreshNotifications);
+    window.addEventListener(
+      "farmesh:notification",
+      handleRuntimeNotification as EventListener
+    );
+    window.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
-      window.clearTimeout(timeoutId);
       window.clearInterval(intervalId);
       window.removeEventListener("farmesh:data-updated", refreshNotifications);
+      window.removeEventListener(
+        "farmesh:notification",
+        handleRuntimeNotification as EventListener
+      );
+      window.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [checkForNotificationUpdates, user]);
+  }, [pathname, pushRuntimeNotification, runNotificationCheck, user]);
 
   const handleSignOut = async () => {
     await signout();

@@ -8,6 +8,7 @@ type ConfirmDialogProps = {
   cancelLabel?: string;
   accentColor?: "green" | "amber";
   busy?: boolean;
+  busyLabel?: string;
   onConfirm: () => void;
   onCancel: () => void;
 };
@@ -20,6 +21,7 @@ export default function ConfirmDialog({
   cancelLabel = "Cancel",
   accentColor = "green",
   busy = false,
+  busyLabel = "Saving...",
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
@@ -57,7 +59,7 @@ export default function ConfirmDialog({
             className="px-5 py-2.5 text-xs font-semibold tracking-[0.12em] uppercase text-white transition-colors duration-300 disabled:opacity-60"
             style={{ backgroundColor: accentHex }}
           >
-            {busy ? "Saving..." : confirmLabel}
+            {busy ? busyLabel : confirmLabel}
           </button>
         </div>
       </div>
